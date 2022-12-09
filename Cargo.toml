@@ -1,0 +1,18 @@
+[package]
+name = "memegnit_bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Telegram Bot Library
+teloxide = { version = "0.11", features = ["macros"] }
+# Logs Libraries
+log = "0.4"
+pretty_env_logger = "0.4"
+tokio = { version =  "1.8", features = ["rt-multi-thread", "macros"] }
+# Env Files Loader
+dotenv = "0.15.0"
+# Comand-Line Arguments
+clap = "4.0.29"
