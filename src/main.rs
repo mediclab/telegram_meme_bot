@@ -1,10 +1,22 @@
 extern crate dotenv;
 
+mod handlers;
+mod db_connection;
+pub mod models;
+pub mod schema;
+
 use dotenv::dotenv;
 use teloxide::prelude::*;
 use clap::Parser;
 
-pub mod handlers;
+use redis::Client as RedisClient;
+use db_connection::PgPool;
+use std::sync::Arc;
+
+pub struct BotState {
+    pub db_pool: PgPool,
+    pub redis: RedisClient
+}
 
 #[derive(Parser,Default,Debug)]
 #[clap(author="Medic84", version, about="Meme telegram bot for chats")]
@@ -22,7 +34,9 @@ async fn main() {
     //let args = Arguments::parse();
 
     let bot = Bot::from_env();
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let redis = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let db_pool: PgPool = db_connection::establish_connection();
+    let state = Arc::new(BotState{ db_pool, redis });
 
     let handler = 
         dptree::entry()
@@ -33,7 +47,7 @@ async fn main() {
     println!("Starting dispatch...");
 
     Dispatcher::builder(bot, handler)
-        .dependencies(dptree::deps![client])
+        .dependencies(dptree::deps![Arc::clone(&state)])
         .enable_ctrlc_handler()
         .build()
         .dispatch()

@@ -1,35 +1,39 @@
 use teloxide::{prelude::*, types::{InputFile, ReplyMarkup, InlineKeyboardButton, InlineKeyboardMarkup}};
 use std::error::Error;
-use redis::{Client as RedisClient, RedisError};
-use redis::{aio::Connection, AsyncCommands, FromRedisValue};
+use redis::Commands;
+use std::sync::Arc;
 
-pub async fn message_handle(bot: Bot, msg: Message, client: RedisClient) -> Result<(), Box<dyn Error + Send + Sync>> {
+use crate::schema::*;
+use crate::models::*;
+
+use crate::{BotState, db_connection};
+
+pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();
-    let mut redis = client.get_async_connection().await?;
+    let mut redis = state.redis.get_connection()?;
 
     let user_text = match &user.username {
         Some(uname) => format!("@{}", uname),
         None => format!("[{}](tg://user?id={})", user.first_name, user.id)
     };
 
+    let connection = db_connection::pg_pool_handler(&state.db_pool).unwrap();
+
+    let results = memes.limit(1)
+        .load::<Meme>(&connection)
+        .expect("Error loading users");
+
     match msg.photo() {
         Some(photo) => {
-            redis.set(format!("likes_{:?}", msg.id), 0).await?;
+            let likes = redis.set(format!("likes_{}", msg.id.0), 0)?;
+            let dislikes = redis.set(format!("dislikes_{}", msg.id.0), 0)?;
 
             bot.delete_message(msg.chat.id, msg.id).await?;
             bot.send_photo(msg.chat.id, InputFile::file_id(&photo[0].file.id))
             .caption(format!("Оцените мем {}", user_text))
-            .reply_markup(ReplyMarkup::inline_kb(vec![vec![
-                InlineKeyboardButton::callback(
-                    format!("{} Like ({})", String::from(emojis::get_by_shortcode("heart").unwrap().as_str()), 0),
-                    String::from("Like")
-                ),
-                InlineKeyboardButton::callback(
-                    format!("{} Dislike ({})",String::from(emojis::get_by_shortcode("broken_heart").unwrap().as_str()), 0),
-                    String::from("Dislike")
-                )
-            ]]))
-            .await?;
+            .reply_markup(ReplyMarkup::InlineKeyboard(
+                self::get_likes_markup(likes, dislikes)
+            )).await?;
         },
         None => {}
     }
@@ -37,40 +41,49 @@ pub async fn message_handle(bot: Bot, msg: Message, client: RedisClient) -> Resu
     Ok(())
 }
 
-pub async fn callback_handle(bot: Bot, callback: CallbackQuery, client: RedisClient) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let msg = callback.message.unwrap();
-    let mut redis = client.get_async_connection().await?;
+    let mut redis = state.redis.get_connection().expect("Connection error");
+
+    let mut likes: i32 = redis.get(format!("likes_{}", msg.id.0)).unwrap_or(0);
+    let mut dislikes: i32 = redis.get(format!("dislikes_{}", msg.id.0)).unwrap_or(0);
 
     match callback.data.unwrap().as_str() {
         "Like" => {
-            let likes = redis.get(format!("likes_{:?}", msg.id)).await.map_err(|err| {});
-            println!("{:?}", FromRedisValue::from_redis_value(&likes).map_err(|e| RedisError(e).into()));
-
-            let request = bot.edit_message_reply_markup(format!("@{}", msg.chat.username().unwrap()), msg.id)
-            .reply_markup(
-                InlineKeyboardMarkup::new(
-                    vec![vec![
-                        InlineKeyboardButton::callback(
-                            format!(
-                                "{} Like (0)", String::from(emojis::get_by_shortcode("heart").unwrap().as_str()),
-                                //FromRedisValue::from_redis_value(&likes).map_err(|err| {})
-                            ),
-                            String::from("Like")
-                        ),
-                        InlineKeyboardButton::callback(
-                            format!("{} Dislike ({})",String::from(emojis::get_by_shortcode("broken_heart").unwrap().as_str()), 0),
-                            String::from("Dislike")
-                        )
-                    ]]
-                )  
-            );
-
-            request.send();
+            likes = redis.incr(format!("likes_{}", msg.id.0), 1)?;
         },
         "Dislike" => {
-
+            dislikes = redis.incr(format!("dislikes_{}", msg.id.0), 1)?;
         }
         _ => {},
     }
+
+    let _ = bot
+        .edit_message_reply_markup(msg.chat.id, msg.id)
+        .reply_markup(self::get_likes_markup(likes, dislikes))
+        .await?
+    ;
+
     Ok(())
+}
+
+fn get_likes_markup(likes: i32, dislikes: i32) -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::new(
+        vec![vec![
+            InlineKeyboardButton::callback(
+                format!(
+                    "{} Like ({})", String::from(emojis::get_by_shortcode("heart").unwrap().as_str()),
+                    likes
+                ),
+                String::from("Like")
+            ),
+            InlineKeyboardButton::callback(
+                format!(
+                    "{} Dislike ({})",String::from(emojis::get_by_shortcode("broken_heart").unwrap().as_str()),
+                    dislikes
+                ),
+                String::from("Dislike")
+            )
+        ]]
+    )
 }
