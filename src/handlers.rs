@@ -3,8 +3,8 @@ use std::error::Error;
 use redis::Commands;
 use std::sync::Arc;
 
-use crate::schema::*;
-use crate::models::*;
+// use crate::schema::*;
+// use crate::models::*;
 
 use crate::{BotState, db_connection};
 
@@ -17,11 +17,7 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
         None => format!("[{}](tg://user?id={})", user.first_name, user.id)
     };
 
-    let connection = db_connection::pg_pool_handler(&state.db_pool).unwrap();
-
-    let results = memes.limit(1)
-        .load::<Meme>(&connection)
-        .expect("Error loading users");
+    // let connection = db_connection::pg_pool_handler(&state.db_pool).unwrap();
 
     match msg.photo() {
         Some(photo) => {

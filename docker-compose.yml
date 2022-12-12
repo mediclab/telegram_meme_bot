@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: meme_bot
+      POSTGRES_DB: meme_bot
+      POSTGRES_PASSWORD: pass_meme_bot
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+
+  redis:
+    image: redis:latest
+    ports:
+      - 6379:6379
+  
+  bot:
+    image: rust:latest
+    environment:
+      CARGO_HOME: /.cargo
+    command: cargo run
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ~/.cargo:/.cargo
+
+volumes:
+  pg_data:

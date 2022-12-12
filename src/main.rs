@@ -11,7 +11,7 @@ use clap::Parser;
 
 use redis::Client as RedisClient;
 use db_connection::PgPool;
-use std::sync::Arc;
+use std::{sync::Arc, env};
 
 pub struct BotState {
     pub db_pool: PgPool,
@@ -34,7 +34,9 @@ async fn main() {
     //let args = Arguments::parse();
 
     let bot = Bot::from_env();
-    let redis = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let redis = redis::Client::open(
+        env::var("REDIS_URL").expect("REDIS_URL must be set")
+    ).unwrap();
     let db_pool: PgPool = db_connection::establish_connection();
     let state = Arc::new(BotState{ db_pool, redis });
 

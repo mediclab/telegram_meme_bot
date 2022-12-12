@@ -1,6 +1,6 @@
 use crate::schema::*;
 use chrono::prelude::*;
-use diesel::{prelude::*, sql_types::{Timestamp, Jsonb}};
+use diesel::prelude::*;
 
 #[derive(Debug, Queryable, Identifiable)]
 pub struct Meme {
@@ -11,18 +11,16 @@ pub struct Meme {
 
 #[derive(Debug, Insertable)]
 #[table_name="memes"]
-pub struct NewMeme<'x> {
+pub struct AddMeme {
     pub user_id: i64,
-    pub photos: &'x Jsonb
+    pub photos: Option<serde_json::Value>,
 }
 
-#[derive(Queryable, Insertable, Associations, Identifiable)]
-//#[table_name="meme_likes"]
+#[derive(Queryable, Insertable, Associations)]
+#[table_name="meme_likes"]
 #[belongs_to(Meme)]
-pub struct MemeLikes {
-    pub id: i64,
+pub struct AddLike {
     pub user_id: i64,
     pub meme_id: i64,
-    pub num: u8,
-    pub created_at: String,
+    pub num: i16,
 }

@@ -311,6 +311,7 @@ dependencies = [
  "itoa",
  "pq-sys",
  "r2d2",
+ "serde_json",
 ]
 
 [[package]]
@@ -1569,6 +1570,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "redis",
+ "serde_json",
  "teloxide",
  "tokio",
 ]
