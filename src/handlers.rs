@@ -3,10 +3,11 @@ use std::error::Error;
 use redis::Commands;
 use std::sync::Arc;
 
-// use crate::schema::*;
-// use crate::models::*;
-
+use crate::schema::*;
+use crate::models::*;
 use crate::{BotState, db_connection};
+
+use diesel::RunQueryDsl;
 
 pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();
@@ -14,18 +15,27 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
 
     let user_text = match &user.username {
         Some(uname) => format!("@{}", uname),
-        None => format!("[{}](tg://user?id={})", user.first_name, user.id)
+        None => format!("[{}](tg://user?id={})", user.first_name, user.id.0)
     };
 
-    // let connection = db_connection::pg_pool_handler(&state.db_pool).unwrap();
+    let mut connection = db_connection::pg_pool_handler(&state.db_pool).unwrap();
 
     match msg.photo() {
-        Some(photo) => {
+        Some(photos) => {
             let likes = redis.set(format!("likes_{}", msg.id.0), 0)?;
             let dislikes = redis.set(format!("dislikes_{}", msg.id.0), 0)?;
 
+            diesel::insert_into(memes::table)
+                .values(&AddMeme {
+                    user_id: user.id.0 as i64,
+                    photos: serde_json::from_str("{}")?
+                })
+                .get_result::<AddMeme>(&mut connection)
+                .expect("Can't save new meme")
+            ;
+
             bot.delete_message(msg.chat.id, msg.id).await?;
-            bot.send_photo(msg.chat.id, InputFile::file_id(&photo[0].file.id))
+            bot.send_photo(msg.chat.id, InputFile::file_id(&photos[0].file.id))
             .caption(format!("Оцените мем {}", user_text))
             .reply_markup(ReplyMarkup::InlineKeyboard(
                 self::get_likes_markup(likes, dislikes)

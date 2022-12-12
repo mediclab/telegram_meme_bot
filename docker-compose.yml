@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:14
+    image: postgres:14-alpine
     environment:
       POSTGRES_USER: meme_bot
       POSTGRES_DB: meme_bot
@@ -18,14 +18,15 @@ services:
       - 6379:6379
   
   bot:
-    image: rust:latest
+    build:
+      dockerfile: "./Dockerfile"
+      context: .
     environment:
-      CARGO_HOME: /.cargo
+      CARGO_HOME: /app/.cargo_home
     command: cargo run
     working_dir: /app
     volumes:
       - ./:/app
-      - ~/.cargo:/.cargo
 
 volumes:
   pg_data:

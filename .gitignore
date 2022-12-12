@@ -2,3 +2,5 @@
 .env
 .vscode
 .idea
+.cargo_home/
+.DS_Store
