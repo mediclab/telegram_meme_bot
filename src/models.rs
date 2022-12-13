@@ -13,6 +13,7 @@ pub struct Meme {
 #[diesel(table_name = memes)]
 pub struct AddMeme {
     pub user_id: i64,
+    pub chat_id: i64,
     pub photos: Option<serde_json::Value>,
 }
 

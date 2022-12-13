@@ -27,6 +27,9 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
   pg_data:
