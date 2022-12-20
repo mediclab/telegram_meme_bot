@@ -4,15 +4,12 @@ use std::error::Error;
 use redis::Commands;
 use std::sync::Arc;
 
-use crate::schema::*;
 use crate::models::*;
-use crate::{BotState, db_connection};
-
-use diesel::RunQueryDsl;
+use crate::BotState;
 
 pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();
-    let mut conn = db_connection::pg_pool_handler(&state.db_pool).unwrap();
+    let conn = &mut state.db_manager.get_pool().unwrap();
 
     let user_text = match &user.username {
         Some(uname) => format!("@{}", uname),
@@ -21,15 +18,7 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
 
     match msg.photo() {
         Some(photos) => {
-            diesel::insert_into(memes::table)
-                .values(&AddMeme {
-                    user_id: user.id.0 as i64,
-                    chat_id: msg.chat.id.0,
-                    photos: Some(json!(photos)),
-                })
-                .execute(&mut conn)
-                .expect("Can't save new meme")
-            ;
+            Memes::add(conn, user.id.0 as i64, msg.chat.id.0, Some(json!(photos)));
 
             bot.delete_message(msg.chat.id, msg.id).await?;
             bot.send_photo(msg.chat.id, InputFile::file_id(&photos[0].file.id))
