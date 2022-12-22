@@ -20,7 +20,7 @@ pub struct BotState {
     pub redis: RedisClient
 }
 
-#[derive(Parser,Default,Debug)]
+#[derive(Parser, Default, Debug)]
 #[clap(author="Medic84", version, about="Meme telegram bot for chats")]
 struct Arguments {
     /// Run the bot daemon

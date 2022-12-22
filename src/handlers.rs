@@ -1,7 +1,6 @@
 use serde_json::json;
 use teloxide::{prelude::*, types::{InputFile, ReplyMarkup, InlineKeyboardButton, InlineKeyboardMarkup}};
 use std::error::Error;
-use redis::Commands;
 use std::sync::Arc;
 
 use crate::models::*;
@@ -18,7 +17,7 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
 
     match msg.photo() {
         Some(photos) => {
-            Memes::add(conn, user.id.0 as i64, msg.chat.id.0, Some(json!(photos)));
+            let _ = Meme::add(conn, user.id.0 as i64, msg.chat.id.0, Some(json!(photos)));
 
             bot.delete_message(msg.chat.id, msg.id).await?;
             bot.send_photo(msg.chat.id, InputFile::file_id(&photos[0].file.id))
@@ -35,20 +34,20 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
 
 pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let msg = callback.message.unwrap();
-    let mut redis = state.redis.get_connection().expect("Connection error");
-
-    let mut likes: i32 = redis.get(format!("likes_{}", msg.id.0)).unwrap_or(0);
-    let mut dislikes: i32 = redis.get(format!("dislikes_{}", msg.id.0)).unwrap_or(0);
+    let conn = &mut state.db_manager.get_pool().unwrap();
 
     match callback.data.unwrap().as_str() {
         "Like" => {
-            likes = redis.incr(format!("likes_{}", msg.id.0), 1)?;
+            MemeLike::like(conn, msg.from().unwrap().id.0 as i64, msg.id.0 as i64);
         },
         "Dislike" => {
-            dislikes = redis.incr(format!("dislikes_{}", msg.id.0), 1)?;
+            MemeLike::dislike(conn, msg.from().unwrap().id.0 as i64, msg.id.0 as i64);
         }
         _ => {},
     }
+
+    let likes: i64 = MemeLike::count_likes(conn, msg.from().unwrap().id.0 as i64, msg.id.0 as i64);
+    let dislikes: i64 = MemeLike::count_dislikes(conn, msg.from().unwrap().id.0 as i64, msg.id.0 as i64);
 
     let _ = bot
         .edit_message_reply_markup(msg.chat.id, msg.id)
@@ -59,7 +58,7 @@ pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotSt
     Ok(())
 }
 
-fn get_likes_markup(likes: i32, dislikes: i32) -> InlineKeyboardMarkup {
+fn get_likes_markup(likes: i64, dislikes: i64) -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(
         vec![vec![
             InlineKeyboardButton::callback(

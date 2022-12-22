@@ -3,10 +3,15 @@ extern crate derive_builder;
 use crate::db::PgPooledConnection;
 use diesel::prelude::*;
 use std::time::SystemTime;
+use diesel::result::Error;
+use diesel::dsl;
+
+use crate::schema::memes as MemesSchema;
+use crate::schema::meme_likes as MemeLikesSchema;
 
 #[derive(Builder, Debug, Selectable, Queryable, Identifiable, Insertable)]
 #[diesel(table_name = crate::schema::memes)]
-pub struct Memes {
+pub struct Meme {
     pub id: i64,
     pub user_id: i64,
     pub chat_id: i64,
@@ -15,44 +20,98 @@ pub struct Memes {
     pub updated_at: Option<SystemTime>,
 }
 
-impl Memes {
-    pub fn add(conn: &mut PgPooledConnection, userId: i64, chatId: i64, photo: Option<serde_json::Value>) {
-        let meme_id = diesel::insert_into(crate::schema::memes::table)
+impl Meme {
+    pub fn add(conn: &mut PgPooledConnection, user_id: i64, chat_id: i64, photo: Option<serde_json::Value>) -> Result<Meme, Error> {
+        diesel::insert_into(MemesSchema::table)
             .values(
                 (
-                    crate::schema::memes::dsl::user_id.eq(userId),
-                    crate::schema::memes::dsl::chat_id.eq(chatId),
-                    crate::schema::memes::dsl::photos.eq(photo)
+                    MemesSchema::dsl::user_id.eq(user_id),
+                    MemesSchema::dsl::chat_id.eq(chat_id),
+                    MemesSchema::dsl::photos.eq(photo)
                 )
             )
-            .returning(crate::schema::memes::dsl::id)
-            .execute(&mut *conn)
-            .expect("Can't save new meme")
-        ;
-
-        diesel::insert_into(crate::schema::meme_likes::table)
-            .values(
-                (
-                    crate::schema::meme_likes::dsl::user_id.eq(userId),
-                    crate::schema::meme_likes::dsl::meme_id.eq(meme_id as i64),
-                    crate::schema::meme_likes::dsl::num.eq(0)
-                )
-            )
-            .execute(&mut *conn)
-            .expect("Can't save new meme like")
-        ;
+            .get_result::<Meme>(&mut *conn)
     }
 }
 
-#[derive(Debug, Queryable, Insertable, Associations)]
-#[diesel(table_name = crate::schema::meme_likes)]
-#[diesel(belongs_to(Memes))]
-pub struct Likes {
+#[derive(Debug, Selectable, Queryable, Insertable, Identifiable, Associations)]
+#[diesel(table_name = MemeLikesSchema)]
+#[diesel(belongs_to(Meme))]
+pub struct MemeLike {
+    pub id: i64,
     pub user_id: i64,
     pub meme_id: i64,
     pub num: i16,
+    pub created_at: Option<SystemTime>,
 }
 
-impl Likes {
+impl MemeLike {
+    pub fn like(conn: &mut PgPooledConnection, user_id: i64, meme_id: i64) -> bool {
+        if MemeLike::exists(conn, user_id, meme_id) {
+            diesel::update(MemeLikesSchema::table)
+                .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+                .filter(MemeLikesSchema::dsl::meme_id.eq(meme_id))
+                .set(MemeLikesSchema::dsl::num.eq(1))
+                .execute(&mut *conn).is_ok()
+        } else {
+            diesel::insert_into(MemeLikesSchema::table)
+            .values(
+                (
+                    MemeLikesSchema::dsl::user_id.eq(user_id),
+                    MemeLikesSchema::dsl::meme_id.eq(meme_id),
+                    MemeLikesSchema::dsl::num.eq(1)
+                )
+            )
+            .execute(&mut *conn).is_ok()
+        }
+    }
 
+    pub fn dislike(conn: &mut PgPooledConnection, user_id: i64, meme_id: i64) -> bool {
+        if MemeLike::exists(conn, user_id, meme_id) {
+            diesel::update(MemeLikesSchema::table)
+                .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+                .filter(MemeLikesSchema::dsl::meme_id.eq(meme_id))
+                .set(MemeLikesSchema::dsl::num.eq(-1))
+                .execute(&mut *conn).is_ok()
+        } else {
+            diesel::insert_into(MemeLikesSchema::table)
+            .values(
+                (
+                    MemeLikesSchema::dsl::user_id.eq(user_id),
+                    MemeLikesSchema::dsl::meme_id.eq(meme_id),
+                    MemeLikesSchema::dsl::num.eq(-1)
+                )
+            )
+            .execute(&mut *conn).is_ok()
+        }
+    }
+
+    pub fn exists(conn: &mut PgPooledConnection, user_id: i64, meme_id: i64) -> bool {
+        dsl::select(dsl::exists(
+            MemeLikesSchema::table
+            .filter(
+                MemeLikesSchema::dsl::meme_id.eq(meme_id)
+            ).filter(
+                MemeLikesSchema::dsl::user_id.eq(user_id)
+            )
+        )).get_result(&mut *conn).unwrap_or(false)
+    }
+
+    pub fn count_likes(conn: &mut PgPooledConnection, user_id: i64, meme_id: i64) -> i64 {
+        MemeLikesSchema::table
+            .filter(MemeLikesSchema::dsl::meme_id.eq(meme_id))
+            .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+            .filter(MemeLikesSchema::dsl::num.eq(1))
+            .count()
+            .get_result(&mut *conn).unwrap_or(0)
+    }
+
+    pub fn count_dislikes(conn: &mut PgPooledConnection, user_id: i64, meme_id: i64) -> i64 {
+        MemeLikesSchema::table
+            .filter(MemeLikesSchema::dsl::meme_id.eq(meme_id))
+            .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+            .filter(MemeLikesSchema::dsl::num.eq(-1))
+            .count()
+            .get_result(&mut *conn).unwrap_or(0)
+    }
 }
