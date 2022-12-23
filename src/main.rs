@@ -1,10 +1,10 @@
 extern crate dotenv;
-#[macro_use] extern crate derive_builder;
 
 mod db;
 use db::DBManager;
 
 mod handlers;
+mod repository;
 
 pub mod models;
 pub mod schema;
@@ -12,12 +12,10 @@ pub mod schema;
 use dotenv::dotenv;
 use teloxide::prelude::*;
 use clap::Parser;
-use redis::Client as RedisClient;
 use std::{sync::Arc, env};
 
 pub struct BotState {
     pub db_manager: DBManager,
-    pub redis: RedisClient
 }
 
 #[derive(Parser, Default, Debug)]
@@ -36,17 +34,13 @@ async fn main() {
     //let args = Arguments::parse();
 
     let bot = Bot::from_env();
-    
-    let redis = redis::Client::open(
-        env::var("REDIS_URL").expect("REDIS_URL must be set")
-    ).unwrap();
 
     let db_manager: DBManager = DBManager::connect(
         env::var("DATABASE_URL").expect("DATABASE_URL must be set")
     );
 
     let state = Arc::new(
-        BotState{ db_manager, redis }
+        BotState{ db_manager }
     );
 
     let handler = 

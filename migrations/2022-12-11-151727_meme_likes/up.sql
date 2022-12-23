@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS meme_likes (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    meme_id BIGINT NOT NULL,
+    msg_id BIGINT NOT NULL REFERENCES memes(msg_id) ON DELETE CASCADE,
     num SMALLINT DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX ON meme_likes (user_id, meme_id);
+CREATE UNIQUE INDEX ON meme_likes (user_id, msg_id);

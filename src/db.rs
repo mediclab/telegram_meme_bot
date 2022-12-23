@@ -4,6 +4,7 @@ use diesel::r2d2::{ Pool, PooledConnection, ConnectionManager, PoolError };
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
+#[derive(Clone)]
 pub struct DBManager {
     pool: PgPool
 }

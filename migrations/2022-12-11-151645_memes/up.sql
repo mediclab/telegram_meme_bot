@@ -1,8 +1,10 @@
 CREATE TABLE IF NOT EXISTS memes (
-    id BIGSERIAL PRIMARY KEY,
+    msg_id BIGSERIAL PRIMARY KEY,
+    bot_msg_id BIGINT NULL,
     user_id BIGINT NOT NULL,
     chat_id BIGINT NOT NULL,
     photos JSONB,
+    hash TEXT,
     posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
