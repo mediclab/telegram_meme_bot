@@ -11,10 +11,10 @@ pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotSt
 
     match callback.data.unwrap().as_str() {
         "Like" => {
-            repository.like(&msg);
+            repository.like(&callback.from, &msg);
         },
         "Dislike" => {
-            repository.dislike(&msg);
+            repository.dislike(&callback.from, &msg);
         }
         _ => {},
     }
