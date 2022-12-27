@@ -17,7 +17,6 @@ diesel::table! {
         user_id -> Int8,
         chat_id -> Int8,
         photos -> Nullable<Jsonb>,
-        //hash -> Nullable<Text>,
         posted_at -> Nullable<Timestamp>,
         updated_at -> Nullable<Timestamp>,
     }

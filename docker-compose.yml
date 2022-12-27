@@ -28,7 +28,7 @@ services:
       context: .
     environment:
       CARGO_HOME: /app/.cargo_home
-    command: "diesel migration run && cargo run"
+    command: sh -c "diesel migration run && cargo run"
     working_dir: /app
     volumes:
       - ./:/app

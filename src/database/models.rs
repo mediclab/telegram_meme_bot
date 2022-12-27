@@ -13,7 +13,6 @@ pub struct Meme {
     pub msg_id: Option<i64>,
     pub user_id: i64,
     pub chat_id: i64,
-    //pub hash: Option<String>,
     pub photos: Option<serde_json::Value>,
     pub posted_at: Option<SystemTime>,
     pub updated_at: Option<SystemTime>

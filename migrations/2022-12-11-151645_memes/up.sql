@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS memes (
     user_id BIGINT NOT NULL,
     chat_id BIGINT NOT NULL,
     photos JSONB NULL,
-    hash TEXT NULL,
+    --hash TEXT NULL,
     posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
