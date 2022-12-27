@@ -1,11 +1,11 @@
 use serde_json::json;
 
-use crate::db::DBManager;
-use crate::db::PgPooledConnection;
+use crate::database::manager::DBManager;
+use crate::database::PgPooledConnection;
 
-use crate::models::*;
-use crate::schema::memes as MemesSchema;
-use crate::schema::meme_likes as MemeLikesSchema;
+use crate::database::models::*;
+use crate::database::schema::memes as MemesSchema;
+use crate::database::schema::meme_likes as MemeLikesSchema;
 
 use diesel::{result::Error, dsl, prelude::*};
 use teloxide::types::Message;
@@ -50,10 +50,10 @@ impl MemeRepository {
         let bot_msg_id = bot_msg.id.0 as i64;
 
         diesel::update(MemesSchema::table)
-                .filter(MemesSchema::dsl::msg_id.eq(user_msg_id))
-                .set(MemesSchema::dsl::bot_msg_id.eq(bot_msg_id))
-                .execute(&mut *self.get_connection())
-                .is_ok()
+            .filter(MemesSchema::dsl::msg_id.eq(user_msg_id))
+            .set(MemesSchema::dsl::bot_msg_id.eq(bot_msg_id))
+            .execute(&mut *self.get_connection())
+            .is_ok()
     }
 }
 
@@ -81,7 +81,8 @@ impl MemeLikeRepository {
                 .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
                 .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
                 .set(MemeLikesSchema::dsl::num.eq(1))
-                .execute(&mut *self.get_connection()).is_ok()
+                .execute(&mut *self.get_connection())
+                .is_ok()
         } else {
             diesel::insert_into(MemeLikesSchema::table)
             .values(
@@ -91,7 +92,8 @@ impl MemeLikeRepository {
                     MemeLikesSchema::dsl::num.eq(1)
                 )
             )
-            .execute(&mut *self.get_connection()).is_ok()
+            .execute(&mut *self.get_connection())
+            .is_ok()
         }
     }
 
@@ -128,7 +130,8 @@ impl MemeLikeRepository {
             MemeLikesSchema::table
             .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
             .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
-        )).get_result(&mut *self.get_connection()).unwrap_or(false)
+        )).get_result(&mut *self.get_connection())
+        .unwrap_or(false)
     }
 
     pub fn count_likes(&self, message: &Message) -> i64 {
@@ -140,7 +143,8 @@ impl MemeLikeRepository {
             .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
             .filter(MemeLikesSchema::dsl::num.eq(1))
             .count()
-            .get_result(&mut *self.get_connection()).unwrap_or(0)
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
     }
 
     pub fn count_dislikes(&self, message: &Message) -> i64 {
@@ -152,6 +156,7 @@ impl MemeLikeRepository {
             .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
             .filter(MemeLikesSchema::dsl::num.eq(-1))
             .count()
-            .get_result(&mut *self.get_connection()).unwrap_or(0)
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
     }
 }

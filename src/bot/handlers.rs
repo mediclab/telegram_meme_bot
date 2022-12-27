@@ -3,7 +3,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::BotState;
-use crate::repository::{MemeRepository, MemeLikeRepository};
+use crate::database::repository::{MemeRepository, MemeLikeRepository};
 
 pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();

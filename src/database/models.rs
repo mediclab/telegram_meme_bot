@@ -1,5 +1,6 @@
-use crate::schema::memes as MemesSchema;
-use crate::schema::meme_likes as MemeLikesSchema;
+use crate::database::schema::memes as MemesSchema;
+use crate::database::schema::meme_likes as MemeLikesSchema;
+
 use diesel::prelude::*;
 use std::time::SystemTime;
 

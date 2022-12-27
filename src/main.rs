@@ -1,18 +1,15 @@
 extern crate dotenv;
 
-mod db;
-use db::DBManager;
-
-mod handlers;
-mod repository;
-
-pub mod models;
-pub mod schema;
+mod bot;
+mod database;
 
 use dotenv::dotenv;
 use teloxide::prelude::*;
 use clap::Parser;
 use std::{sync::Arc, env};
+
+use database::manager::DBManager;
+use bot::handlers as BotHandlers;
 
 pub struct BotState {
     pub db_manager: DBManager,
@@ -40,13 +37,13 @@ async fn main() {
     );
 
     let state = Arc::new(
-        BotState{ db_manager }
+        BotState { db_manager }
     );
 
     let handler = 
         dptree::entry()
-        .branch(Update::filter_message().endpoint(handlers::message_handle))
-        .branch(Update::filter_callback_query().endpoint(handlers::callback_handle))
+        .branch(Update::filter_message().endpoint(BotHandlers::message_handle))
+        .branch(Update::filter_callback_query().endpoint(BotHandlers::callback_handle))
     ;
 
     println!("Starting dispatch...");

@@ -1,8 +1,8 @@
 use diesel::pg::PgConnection;
-use diesel::r2d2::{ Pool, PooledConnection, ConnectionManager, PoolError };
+use diesel::r2d2::{ Pool, ConnectionManager, PoolError };
 
-pub type PgPool = Pool<ConnectionManager<PgConnection>>;
-pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
+use crate::database::PgPool;
+use crate::database::PgPooledConnection;
 
 #[derive(Clone)]
 pub struct DBManager {
