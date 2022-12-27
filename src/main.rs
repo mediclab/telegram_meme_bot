@@ -9,7 +9,9 @@ use clap::Parser;
 use std::{sync::Arc, env};
 
 use database::manager::DBManager;
-use bot::handlers as BotHandlers;
+use bot::messages as BotMessages;
+use bot::callbacks as BotCallbacks;
+use bot::commands as BotCommands;
 
 pub struct BotState {
     pub db_manager: DBManager,
@@ -42,8 +44,9 @@ async fn main() {
 
     let handler = 
         dptree::entry()
-        .branch(Update::filter_message().endpoint(BotHandlers::message_handle))
-        .branch(Update::filter_callback_query().endpoint(BotHandlers::callback_handle))
+        .branch(Update::filter_message().filter_command::<BotCommands::Command>().endpoint(BotCommands::handle))
+        .branch(Update::filter_message().endpoint(BotMessages::message_handle))
+        .branch(Update::filter_callback_query().endpoint(BotCallbacks::callback_handle))
     ;
 
     println!("Starting dispatch...");

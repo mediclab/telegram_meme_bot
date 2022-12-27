@@ -1,4 +1,5 @@
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::database::manager::DBManager;
 use crate::database::PgPooledConnection;
@@ -9,6 +10,7 @@ use crate::database::schema::meme_likes as MemeLikesSchema;
 
 use diesel::{result::Error, dsl, prelude::*};
 use teloxide::types::Message;
+//use diesel::query_dsl::RunQueryDsl;
 
 pub struct MemeRepository {
     db_manager: DBManager,
@@ -20,7 +22,7 @@ trait Repository {
 
 impl Repository for MemeRepository {
     fn get_connection(&self) -> PgPooledConnection {
-        self.db_manager.get_pool().unwrap()
+        self.db_manager.get_pool().expect("Cannot get connection from pool")
     }
 }
 
@@ -31,7 +33,6 @@ impl MemeRepository {
 
     pub fn add(&self, message: &Message) -> Result<Meme, Error> {
         let user_id = message.from().unwrap().id.0 as i64;
-        let msg_id = message.id.0 as i64;
 
         diesel::insert_into(MemesSchema::table)
             .values(
@@ -39,19 +40,17 @@ impl MemeRepository {
                     MemesSchema::dsl::user_id.eq(user_id),
                     MemesSchema::dsl::chat_id.eq(message.chat.id.0),
                     MemesSchema::dsl::photos.eq(Some(json!(message.photo()))),
-                    MemesSchema::dsl::msg_id.eq(msg_id)
                 )
             )
             .get_result::<Meme>(&mut *self.get_connection())
     }
 
-    pub fn add_bot_msg_id(&self, user_msg: &Message, bot_msg: &Message) -> bool {
-        let user_msg_id = user_msg.id.0 as i64;
-        let bot_msg_id = bot_msg.id.0 as i64;
+    pub fn add_msg_id(&self, uuid: &Uuid, msg: &Message) -> bool {
+        let msg_id = msg.id.0 as i64;
 
         diesel::update(MemesSchema::table)
-            .filter(MemesSchema::dsl::msg_id.eq(user_msg_id))
-            .set(MemesSchema::dsl::bot_msg_id.eq(bot_msg_id))
+            .filter(MemesSchema::dsl::uuid.eq(*uuid))
+            .set(MemesSchema::dsl::msg_id.eq(msg_id))
             .execute(&mut *self.get_connection())
             .is_ok()
     }
@@ -63,7 +62,7 @@ pub struct MemeLikeRepository {
 
 impl Repository for MemeLikeRepository {
     fn get_connection(&self) -> PgPooledConnection {
-        self.db_manager.get_pool().unwrap()
+        self.db_manager.get_pool().expect("Cannot get connection from pool")
     }
 }
 

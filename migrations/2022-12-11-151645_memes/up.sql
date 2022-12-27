@@ -1,10 +1,13 @@
 CREATE TABLE IF NOT EXISTS memes (
-    msg_id BIGSERIAL PRIMARY KEY,
-    bot_msg_id BIGINT NULL,
+    uuid UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    msg_id BIGINT NULL,
     user_id BIGINT NOT NULL,
     chat_id BIGINT NOT NULL,
-    photos JSONB,
-    hash TEXT,
+    photos JSONB NULL,
+    hash TEXT NULL,
     posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX ON memes (msg_id);
+CREATE INDEX ON memes (user_id, chat_id);

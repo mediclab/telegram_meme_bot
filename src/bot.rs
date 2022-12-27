@@ -1,2 +1,3 @@
-pub mod handlers;
-//pub mod commands;
+pub mod commands;
+pub mod messages;
+pub mod callbacks;
