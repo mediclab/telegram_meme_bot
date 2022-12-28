@@ -17,6 +17,10 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
 
     match msg.photo() {
         Some(photos) => {
+            if msg.caption().unwrap_or("").contains("nomeme") {
+                Err("Message with photo contains NOMEME keyword")?
+            }
+
             let meme = repository.add(&msg).unwrap();
 
             bot.delete_message(msg.chat.id, msg.id).await?;

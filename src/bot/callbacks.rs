@@ -33,10 +33,18 @@ pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotSt
             operation_dislike(&callback, &meme, &bot, &repository).await?;
         },
         CallbackOperations::Delete => {
+            if meme.user_id != callback.from.id.0 as i64 {
+                Err("Meme user is not a callback user")?
+            }
+
             bot.delete_message(msg.chat.id, msg.id).await?;
             bot.delete_message(msg.chat.id, MessageId { 0: meme.msg_id.unwrap() as i32}).await?;
         },
         CallbackOperations::None => {
+            if meme.user_id != callback.from.id.0 as i64 {
+                Err("Meme user is not a callback user")?
+            }
+
             bot.delete_message(msg.chat.id, msg.id).await?;
         },
     }
