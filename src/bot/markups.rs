@@ -85,3 +85,38 @@ impl AccordeonMarkup {
         )
     }
 }
+
+pub struct DeleteMarkup {
+    uuid: Uuid,
+}
+
+impl DeleteMarkup {
+    pub fn new(uuid: Uuid) -> Self {
+        Self { uuid }
+    }
+    
+    pub fn get_markup(&self) -> InlineKeyboardMarkup {
+        InlineKeyboardMarkup::new(
+            vec![
+                vec![
+                    InlineKeyboardButton::callback(
+                        format!(
+                            "{} Нет, я передумал",
+                            emojis::get_by_shortcode("x").unwrap().as_str()
+                        ),
+                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::None}).to_string()
+                    )
+                ],
+                vec![
+                    InlineKeyboardButton::callback(
+                        format!(
+                            "{} Да, я хочу удалить",
+                            emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                        ),
+                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::Delete}).to_string()
+                    )
+                ]
+            ]
+        )
+    }
+}

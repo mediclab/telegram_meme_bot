@@ -60,9 +60,10 @@ impl MemeRepository {
         MemesSchema::table.find(uuid).first(&mut *self.get_connection())
     }
 
-    pub fn get_by_msg_id(&self, msg_id: i64) -> Result<Meme, Error> {
+    pub fn get_by_msg_id(&self, msg_id: i64, chat_id: i64) -> Result<Meme, Error> {
         MemesSchema::table
             .filter(MemesSchema::dsl::msg_id.eq(msg_id))
+            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
             .first(&mut *self.get_connection())
     }
 }

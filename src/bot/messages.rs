@@ -8,6 +8,12 @@ use crate::database::repository::MemeRepository;
 
 pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();
+
+    if msg.chat.id.0 > 0 {
+        bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
+        Err("Temporary disabled in private chats")?
+    }
+
     let repository = MemeRepository::new(state.db_manager.clone());
 
     let user_text = match &user.username {
