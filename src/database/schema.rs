@@ -3,8 +3,8 @@
 diesel::table! {
     meme_likes (uuid) {
         uuid -> Uuid,
+        meme_uuid -> Nullable<Uuid>,
         user_id -> Int8,
-        msg_id -> Int8,
         num -> Int2,
         created_at -> Nullable<Timestamp>,
     }
@@ -21,6 +21,8 @@ diesel::table! {
         updated_at -> Nullable<Timestamp>,
     }
 }
+
+diesel::joinable!(meme_likes -> memes (meme_uuid));
 
 diesel::allow_tables_to_appear_in_same_query!(
     meme_likes,

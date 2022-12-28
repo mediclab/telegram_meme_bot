@@ -6,6 +6,7 @@ mod database;
 use dotenv::dotenv;
 use teloxide::prelude::*;
 use clap::Parser;
+use teloxide::types::Me;
 use std::{sync::Arc, env};
 
 use database::manager::DBManager;
@@ -15,6 +16,7 @@ use bot::commands as BotCommands;
 
 pub struct BotState {
     pub db_manager: DBManager,
+    pub bot: Me,
 }
 
 #[derive(Parser, Default, Debug)]
@@ -38,8 +40,10 @@ async fn main() {
         env::var("DATABASE_URL").expect("DATABASE_URL must be set")
     );
 
+    let info = bot.get_me().await.unwrap();
+
     let state = Arc::new(
-        BotState { db_manager }
+        BotState { db_manager, bot: info }
     );
 
     let handler = 

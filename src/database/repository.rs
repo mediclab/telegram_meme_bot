@@ -50,10 +50,20 @@ impl MemeRepository {
         let msg_id = msg.id.0 as i64;
 
         diesel::update(MemesSchema::table)
-            .filter(MemesSchema::dsl::uuid.eq(*uuid))
+            .filter(MemesSchema::dsl::uuid.eq(uuid))
             .set(MemesSchema::dsl::msg_id.eq(msg_id))
             .execute(&mut *self.get_connection())
             .is_ok()
+    }
+
+    pub fn get(&self, uuid: &Uuid) -> Result<Meme, Error> {
+        MemesSchema::table.find(uuid).first(&mut *self.get_connection())
+    }
+
+    pub fn get_by_msg_id(&self, msg_id: i64) -> Result<Meme, Error> {
+        MemesSchema::table
+            .filter(MemesSchema::dsl::msg_id.eq(msg_id))
+            .first(&mut *self.get_connection())
     }
 }
 
@@ -72,14 +82,13 @@ impl MemeLikeRepository {
         Self { db_manager }
     }
 
-    pub fn like(&self, from_user: &User, msg: &Message) -> bool {
+    pub fn like(&self, from_user: &User, uuid: &Uuid) -> bool {
         let user_id = from_user.id.0 as i64;
-        let msg_id = msg.id.0 as i64;
 
-        if self.exists(from_user, msg) {
+        if self.exists(from_user, uuid) {
             diesel::update(MemeLikesSchema::table)
                 .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
-                .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
+                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
                 .set(MemeLikesSchema::dsl::num.eq(1))
                 .execute(&mut *self.get_connection())
                 .is_ok()
@@ -88,7 +97,7 @@ impl MemeLikeRepository {
             .values(
                 (
                     MemeLikesSchema::dsl::user_id.eq(user_id),
-                    MemeLikesSchema::dsl::msg_id.eq(msg_id),
+                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
                     MemeLikesSchema::dsl::num.eq(1)
                 )
             )
@@ -97,14 +106,13 @@ impl MemeLikeRepository {
         }
     }
 
-    pub fn dislike(&self, from_user: &User, msg: &Message) -> bool {
+    pub fn dislike(&self, from_user: &User, uuid: &Uuid) -> bool {
         let user_id = from_user.id.0 as i64;
-        let msg_id = msg.id.0 as i64;
 
-        if self.exists(from_user, msg) {
+        if self.exists(from_user, uuid) {
             diesel::update(MemeLikesSchema::table)
                 .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
-                .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
+                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
                 .set(MemeLikesSchema::dsl::num.eq(-1))
                 .execute(&mut *self.get_connection())
                 .is_ok()
@@ -113,7 +121,7 @@ impl MemeLikeRepository {
             .values(
                 (
                     MemeLikesSchema::dsl::user_id.eq(user_id),
-                    MemeLikesSchema::dsl::msg_id.eq(msg_id),
+                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
                     MemeLikesSchema::dsl::num.eq(-1)
                 )
             )
@@ -122,34 +130,29 @@ impl MemeLikeRepository {
         }
     }
 
-    pub fn exists(&self, from_user: &User, msg: &Message) -> bool {
+    pub fn exists(&self, from_user: &User, uuid: &Uuid) -> bool {
         let user_id = from_user.id.0 as i64;
-        let msg_id = msg.id.0 as i64;
 
         dsl::select(dsl::exists(
             MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
         )).get_result(&mut *self.get_connection())
         .unwrap_or(false)
     }
 
-    pub fn count_likes(&self, message: &Message) -> i64 {
-        let msg_id = message.id.0 as i64;
-
+    pub fn count_likes(&self, uuid: &Uuid) -> i64 {
         MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::num.eq(1))
             .count()
             .get_result(&mut *self.get_connection())
             .unwrap_or(0)
     }
 
-    pub fn count_dislikes(&self, message: &Message) -> i64 {
-        let msg_id = message.id.0 as i64;
-
+    pub fn count_dislikes(&self, uuid: &Uuid) -> i64 {
         MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::msg_id.eq(msg_id))
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::num.eq(-1))
             .count()
             .get_result(&mut *self.get_connection())
