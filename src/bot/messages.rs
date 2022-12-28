@@ -1,4 +1,5 @@
 use teloxide::{prelude::*, types::{InputFile, ReplyMarkup}};
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use std::error::Error;
 use std::sync::Arc;
 use crate::bot::markups::*;
@@ -21,6 +22,10 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
         None => format!("[{}](tg://user?id={})", user.first_name, user.id.0)
     };
 
+    if msg.forward().is_some() {
+        return Ok(());
+    }
+
     match msg.photo() {
         Some(photos) => {
             if msg.caption().unwrap_or("").contains("nomeme") {
@@ -30,6 +35,7 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
             let meme = repository.add(&msg).unwrap();
 
             bot.delete_message(msg.chat.id, msg.id).await?;
+
             let markup = MemeMarkup::new(0, 0, meme.uuid);
             let bot_msg = bot.send_photo(msg.chat.id, InputFile::file_id(&photos[0].file.id))
                 .caption(format!("Оцените мем {}", user_text))

@@ -101,7 +101,7 @@ impl DeleteMarkup {
                 vec![
                     InlineKeyboardButton::callback(
                         format!(
-                            "{} Нет, я передумал",
+                            "{} Нет, я передумал(а)",
                             emojis::get_by_shortcode("x").unwrap().as_str()
                         ),
                         json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::None}).to_string()
