@@ -34,7 +34,13 @@ pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotSt
         },
         CallbackOperations::Delete => {
             if meme.user_id != callback.from.id.0 as i64 {
-                Err("Meme user is not a callback user")?
+                bot
+                    .answer_callback_query(callback.id)
+                    .text("Только пользователь отправивший мем, может сделать это")
+                    .show_alert(true)
+                .await?;
+
+                return Ok(());
             }
 
             bot.delete_message(msg.chat.id, msg.id).await?;
@@ -42,7 +48,13 @@ pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotSt
         },
         CallbackOperations::None => {
             if meme.user_id != callback.from.id.0 as i64 {
-                Err("Meme user is not a callback user")?
+                bot
+                    .answer_callback_query(callback.id)
+                    .text("Только пользователь отправивший мем, может сделать это")
+                    .show_alert(true)
+                .await?;
+                
+                return Ok(());
             }
 
             bot.delete_message(msg.chat.id, msg.id).await?;
