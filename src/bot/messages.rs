@@ -17,6 +17,7 @@ use crate::database::repository::MemeRepository;
 pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
     if msg.chat.id.0 > 0 {
         bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
+
         return Ok(());
     }
 
@@ -82,7 +83,7 @@ async fn handle_mewbie(bot: &Bot, msg: &Message) -> Result<(), Box<dyn Error + S
         "900: {user_name}, Вас приветствует Служба безопасности Сбербанка. Для отмены операции 'В фонд озеленения Луны', Сумма: 34765.00 рублей, пришлите мем (честно, всё именно так 😊)",
         "Добро пожаловать, {user_name}! К сожалению, ваше заявление на отсрочку от мобилизации не будет принято, пока вы не пришлете мем в этот чат."
     ];
-    
+
     bot.delete_message(msg.chat.id, msg.id).await?;
 
     let users = msg.new_chat_members().expect("New chat members not found!");
@@ -94,13 +95,12 @@ async fn handle_mewbie(bot: &Bot, msg: &Message) -> Result<(), Box<dyn Error + S
         }
     }).collect();
 
-    let rng = &mut rand::thread_rng();
-    let message = newbie_msg.choose(rng).unwrap().clone();
+    let message = newbie_msg.choose(&mut rand::thread_rng()).unwrap();
 
-    let _ = bot
-        .send_message(msg.chat.id, message.replace("{user_name}", a.join(", ").as_str()))
-        .await?
-    ;
+    bot.send_message(
+        msg.chat.id,
+        message.clone().replace("{user_name}", a.join(", ").as_str())
+    ).await?;
 
     Ok(())
 }
