@@ -14,15 +14,15 @@ use bot::messages as BotMessages;
 use bot::callbacks as BotCallbacks;
 use bot::commands as BotCommands;
 
-pub struct BotState {
-    pub db_manager: DBManager,
+pub struct Application {
+    pub database: DBManager,
     pub bot: Me,
 }
 
 #[derive(Parser, Default, Debug)]
 #[clap(author="Medic84", version, about="Meme telegram bot for chats")]
 struct Arguments {
-    /// Run the bot daemon
+    /// Run the bot as daemon
     bot: bool,
     max_depth: usize,
 }
@@ -35,15 +35,13 @@ async fn main() {
     //let args = Arguments::parse();
 
     let bot = Bot::from_env();
-
-    let db_manager: DBManager = DBManager::connect(
-        env::var("DATABASE_URL").expect("DATABASE_URL must be set")
-    );
-
-    let info = bot.get_me().await.unwrap();
-
     let state = Arc::new(
-        BotState { db_manager, bot: info }
+        Application {
+            database: DBManager::connect(
+                env::var("DATABASE_URL").expect("DATABASE_URL must be set")
+            ),
+            bot: bot.get_me().await.expect("Can't get bot information")
+        }
     );
 
     let handler = 

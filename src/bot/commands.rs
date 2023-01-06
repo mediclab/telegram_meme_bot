@@ -2,7 +2,7 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 use std::sync::Arc;
 use std::error::Error;
 
-use crate::BotState;
+use crate::Application;
 use crate::database::repository::MemeRepository;
 
 use super::markups::*;
@@ -20,13 +20,13 @@ pub enum Command {
     UnMeme,
 }
 
-pub async fn handle(bot: Bot, msg: Message, cmd: Command, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn handle(bot: Bot, msg: Message, cmd: Command, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
     if msg.chat.id.0 > 0 {
         bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
         Err("Temporary disabled in private chats")?
     }
 
-    let repository = MemeRepository::new(state.db_manager.clone());
+    let repository = MemeRepository::new(app.database.clone());
 
     match cmd {
         Command::Help => bot.send_message(msg.chat.id, Command::descriptions().to_string()).await?,
@@ -34,7 +34,7 @@ pub async fn handle(bot: Bot, msg: Message, cmd: Command, state: Arc<BotState>) 
         Command::Accordeon => {
             match msg.reply_to_message() {
                 Some(repl) => {
-                    if repl.from().unwrap().id == state.bot.id {
+                    if repl.from().unwrap().id == app.bot.id {
                         let meme = repository.get_by_msg_id(repl.id.0 as i64, repl.chat.id.0).unwrap();
                         let accordeon_markup = AccordeonMarkup::new(meme.uuid);
 
@@ -54,7 +54,7 @@ pub async fn handle(bot: Bot, msg: Message, cmd: Command, state: Arc<BotState>) 
         Command::UnMeme => {
             match msg.reply_to_message() {
                 Some(repl) => {
-                    if repl.from().unwrap().id == state.bot.id {
+                    if repl.from().unwrap().id == app.bot.id {
                         let meme = repository.get_by_msg_id(repl.id.0 as i64, repl.chat.id.0).unwrap();
                         let delete_markup = DeleteMarkup::new(meme.uuid);
 

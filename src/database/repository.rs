@@ -11,7 +11,6 @@ use crate::database::schema::meme_likes as MemeLikesSchema;
 
 use diesel::{result::Error, dsl, prelude::*};
 use teloxide::types::Message;
-//use diesel::query_dsl::RunQueryDsl;
 
 pub struct MemeRepository {
     db_manager: DBManager,
@@ -158,5 +157,19 @@ impl MemeLikeRepository {
             .count()
             .get_result(&mut *self.get_connection())
             .unwrap_or(0)
+    }
+
+    pub fn meme_of_week(&self) -> Uuid {
+        dsl::select(MemeLikesSchema::dsl::meme_uuid)
+            .filter(MemeLikesSchema::dsl::created_at.gte())
+            .get_result(&mut *self.get_connection())
+    }
+
+    pub fn meme_of_month(&self) {
+
+    }
+
+    pub fn meme_of_year(&self) {
+
     }
 }

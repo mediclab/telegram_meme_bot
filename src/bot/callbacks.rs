@@ -11,15 +11,15 @@ use teloxide::{
     requests::JsonRequest,
 };
 
-use crate::BotState;
+use crate::Application;
 use crate::database::repository::*;
 
-pub async fn callback_handle(bot: Bot, callback: CallbackQuery, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let repository = MemeLikeRepository::new(state.db_manager.clone());
+pub async fn callback_handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let repository = MemeLikeRepository::new(app.database.clone());
     let data: MemeCallback = serde_json::from_str(
         &callback.data.clone().unwrap_or(r#"{}"#.to_string())
     )?;
-    let meme = MemeRepository::new(state.db_manager.clone())
+    let meme = MemeRepository::new(app.database.clone())
         .get(&data.uuid)
         .unwrap()
     ;

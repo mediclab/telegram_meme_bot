@@ -11,10 +11,10 @@ use std::sync::Arc;
 use rand::seq::SliceRandom;
 
 use crate::bot::markups::*;
-use crate::BotState;
+use crate::Application;
 use crate::database::repository::MemeRepository;
 
-pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn message_handle(bot: Bot, msg: Message, state: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
     if msg.chat.id.0 > 0 {
         bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
 
@@ -34,7 +34,7 @@ pub async fn message_handle(bot: Bot, msg: Message, state: Arc<BotState>) -> Res
     Ok(())
 }
 
-async fn handle_common(bot: &Bot, msg: &Message, state: &Arc<BotState>) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_common(bot: &Bot, msg: &Message, state: &Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = msg.from().unwrap();
     let repository = MemeRepository::new(state.db_manager.clone());
 
