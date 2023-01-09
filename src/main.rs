@@ -10,9 +10,9 @@ use std::{sync::Arc, env};
 use clap::{ArgMatches, Command, Arg};
 
 use database::manager::DBManager;
-use bot::messages as BotMessages;
+use bot::messages::MessagesHandler;
 use bot::callbacks::CallbackHandler;
-use bot::commands as BotCommands;
+use bot::commands::{CommandsHandler, Command as BotCommands};
 
 pub struct Application {
     pub database: DBManager,
@@ -39,8 +39,8 @@ async fn main() {
     if let Some(_) = args.get_one::<String>("start") {
         let handler =
             dptree::entry()
-                .branch(Update::filter_message().filter_command::<BotCommands::Command>().endpoint(BotCommands::handle))
-                .branch(Update::filter_message().endpoint(BotMessages::message_handle))
+                .branch(Update::filter_message().filter_command::<BotCommands>().endpoint(CommandsHandler::handle))
+                .branch(Update::filter_message().endpoint(MessagesHandler::handle))
                 .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle))
             ;
 
@@ -58,8 +58,9 @@ async fn main() {
 
 fn cli() -> ArgMatches {
     Command::new("MemeBot")
+
         .arg(Arg::new("start").long("start")
-            .value_parser(["false", "true",])
+            .value_parser(["false", "true"])
             .default_value("false")
             .num_args(0)
             .default_missing_value("true")

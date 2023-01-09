@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::sync::Arc;
-use futures::executor::block_on;
 
 use crate::Application;
 use crate::bot::markups::*;
@@ -32,86 +31,93 @@ impl CallbackHandler {
 
         match data.op {
             CallbackOperations::Like => {
-                handler.like(&meme)?;
+                handler.like(&meme).await?;
             }
             CallbackOperations::Dislike => {
-                handler.dislike(&meme)?;
+                handler.dislike(&meme).await?;
             }
             CallbackOperations::Delete => {
-                handler.delete(&meme);
+                handler.delete(&meme).await?;
             }
             CallbackOperations::None => {
-                handler.none(&meme);
+                handler.none(&meme).await?;
             }
-        }
+        };
 
         Ok(())
     }
 
-    pub fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
-        let t = repository.like(self.callback.from.id.0 as i64, &meme.uuid);
+        repository.like(self.callback.from.id.0 as i64, &meme.uuid);
         let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
 
-        self.update_message(meme, &msg, likes)
+        self.update_message(meme, &msg, likes).await?;
+
+        Ok(())
     }
 
-    pub fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
-        let t = repository.dislike(self.callback.from.id.0 as i64, &meme.uuid);
+        repository.dislike(self.callback.from.id.0 as i64, &meme.uuid);
         let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
 
-        self.update_message(meme, &msg, likes)
+        self.update_message(meme, &msg, likes).await?;
+
+        Ok(())
     }
 
-    pub fn none(&self, meme: &Meme) {
+    pub async fn none(&self, meme: &Meme) -> Result<bool, Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if meme.user_id != self.callback.from.id.0 as i64 {
-            block_on(async {
-                self.bot
-                    .answer_callback_query(&self.callback.id)
-                    .text("Только пользователь отправивший мем, может сделать это")
-                    .show_alert(true)
-                    .await.expect("Can't answer callback query")
-            });
+            self.bot
+                .answer_callback_query(&self.callback.id)
+                .text("Только пользователь отправивший мем, может сделать это")
+                .show_alert(true)
+                .await?
+            ;
 
-            return;
+            return Ok(false);
         }
 
-        block_on(async {
-            self.bot
-                .delete_message(msg.chat.id, msg.id)
-                .await.expect("Can't delete message")
-        });
+        self.bot
+            .delete_message(msg.chat.id, msg.id)
+            .await?
+        ;
+
+        Ok(true)
     }
 
-    pub fn delete(&self, meme: &Meme) {
-        self.none(meme);
+    pub async fn delete(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+        if !self.none(meme).await? {
+            return Ok(());
+        }
 
-        block_on(async {
-            self.bot
-                .delete_message(
-                    ChatId { 0: meme.chat_id },
-                    MessageId { 0: meme.msg_id.unwrap() as i32 }
-                )
-                .await.expect("Can't delete meme");
-        });
+        self.bot
+            .delete_message(
+                ChatId { 0: meme.chat_id },
+                MessageId { 0: meme.msg_id.unwrap() as i32 }
+            )
+            .await?
+        ;
+
+        Ok(())
     }
 
-    fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (likes, dislikes) = counts;
         let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
 
-        let req = self.bot
+        self.bot
             .edit_message_reply_markup(msg.chat.id, msg.id)
-            .reply_markup(meme_markup.get_markup());
-
-        block_on(req.send())?;
+            .reply_markup(meme_markup.get_markup())
+            .await?
+        ;
 
         Ok(())
     }
