@@ -22,8 +22,8 @@ pub enum Command {
 
 pub async fn handle(bot: Bot, msg: Message, cmd: Command, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
     if msg.chat.id.0 > 0 {
-        bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
-        Err("Temporary disabled in private chats")?
+        // bot.send_message(msg.chat.id, String::from("Временно недоступно в приватных чатах")).await?;
+        // Err("Temporary disabled in private chats")?
     }
 
     let repository = MemeRepository::new(app.database.clone());
@@ -43,14 +43,14 @@ pub async fn handle(bot: Bot, msg: Message, cmd: Command, app: Arc<Application>)
                             .send_message(msg.chat.id, String::from("Пользователи жалуются на великое баянище!\nЧто будем с ним делать?"))
                             .reply_to_message_id(repl.id)
                             .reply_markup(accordeon_markup.get_markup())
-                        .await?
+                            .await?
                     } else {
                         Err("Reply message is not from bot")?
                     }
-                },
+                }
                 None => bot.send_message(msg.chat.id, String::from("Чтобы пожаловаться на сообщение, на него нужно ответить!")).await?,
             }
-        },
+        }
         Command::UnMeme => {
             match msg.reply_to_message() {
                 Some(repl) => {
@@ -61,16 +61,15 @@ pub async fn handle(bot: Bot, msg: Message, cmd: Command, app: Arc<Application>)
                         bot.delete_message(msg.chat.id, msg.id).await?;
                         bot.send_message(msg.chat.id, String::from("Вы действительно хотите удалить мем?"))
                             .reply_to_message_id(repl.id)
-                        .   reply_markup(delete_markup.get_markup())
-                        .await?
+                            .reply_markup(delete_markup.get_markup())
+                            .await?
                     } else {
                         Err("Reply message is not from bot")?
                     }
-                    
-                },
+                }
                 None => bot.send_message(msg.chat.id, String::from("Чтобы удалить свой мем, нужно ответить на него!")).await?
             }
-        },
+        }
     };
 
     Ok(())

@@ -1,16 +1,17 @@
-use serde_json::json;
-use teloxide::types::User;
+use serde_json::Value as Json;
 use uuid::Uuid;
+use now::DateTimeNow;
+use chrono::prelude::*;
 
-use crate::database::manager::DBManager;
-use crate::database::PgPooledConnection;
-
-use crate::database::models::*;
-use crate::database::schema::memes as MemesSchema;
-use crate::database::schema::meme_likes as MemeLikesSchema;
+use crate::database::{
+    models::*,
+    manager::DBManager,
+    PgPooledConnection,
+    schema::memes as MemesSchema,
+    schema::meme_likes as MemeLikesSchema,
+};
 
 use diesel::{result::Error, dsl, prelude::*};
-use teloxide::types::Message;
 
 pub struct MemeRepository {
     db_manager: DBManager,
@@ -31,23 +32,19 @@ impl MemeRepository {
         Self { db_manager }
     }
 
-    pub fn add(&self, message: &Message) -> Result<Meme, Error> {
-        let user_id = message.from().unwrap().id.0 as i64;
-
+    pub fn add(&self, user_id: i64, chat_id: i64, photos: Json) -> Result<Meme, Error> {
         diesel::insert_into(MemesSchema::table)
             .values(
                 (
                     MemesSchema::dsl::user_id.eq(user_id),
-                    MemesSchema::dsl::chat_id.eq(message.chat.id.0),
-                    MemesSchema::dsl::photos.eq(Some(json!(message.photo()))),
+                    MemesSchema::dsl::chat_id.eq(chat_id),
+                    MemesSchema::dsl::photos.eq(Some(photos)),
                 )
             )
             .get_result::<Meme>(&mut *self.get_connection())
     }
 
-    pub fn add_msg_id(&self, uuid: &Uuid, msg: &Message) -> bool {
-        let msg_id = msg.id.0 as i64;
-
+    pub fn add_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
         diesel::update(MemesSchema::table)
             .filter(MemesSchema::dsl::uuid.eq(uuid))
             .set(MemesSchema::dsl::msg_id.eq(msg_id))
@@ -82,63 +79,57 @@ impl MemeLikeRepository {
         Self { db_manager }
     }
 
-    pub fn like(&self, from_user: &User, uuid: &Uuid) -> bool {
-        let user_id = from_user.id.0 as i64;
-
-        if self.exists(from_user, uuid) {
+    pub fn like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        if self.exists(from_user_id, uuid) {
             diesel::update(MemeLikesSchema::table)
-                .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
                 .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
                 .set(MemeLikesSchema::dsl::num.eq(1))
                 .execute(&mut *self.get_connection())
                 .is_ok()
         } else {
             diesel::insert_into(MemeLikesSchema::table)
-            .values(
-                (
-                    MemeLikesSchema::dsl::user_id.eq(user_id),
-                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
-                    MemeLikesSchema::dsl::num.eq(1)
+                .values(
+                    (
+                        MemeLikesSchema::dsl::user_id.eq(from_user_id),
+                        MemeLikesSchema::dsl::meme_uuid.eq(uuid),
+                        MemeLikesSchema::dsl::num.eq(1)
+                    )
                 )
-            )
-            .execute(&mut *self.get_connection())
-            .is_ok()
+                .execute(&mut *self.get_connection())
+                .is_ok()
         }
     }
 
-    pub fn dislike(&self, from_user: &User, uuid: &Uuid) -> bool {
-        let user_id = from_user.id.0 as i64;
-
-        if self.exists(from_user, uuid) {
+    pub fn dislike(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        if self.exists(from_user_id, uuid) {
             diesel::update(MemeLikesSchema::table)
-                .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
                 .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
                 .set(MemeLikesSchema::dsl::num.eq(-1))
                 .execute(&mut *self.get_connection())
                 .is_ok()
         } else {
             diesel::insert_into(MemeLikesSchema::table)
-            .values(
-                (
-                    MemeLikesSchema::dsl::user_id.eq(user_id),
-                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
-                    MemeLikesSchema::dsl::num.eq(-1)
+                .values(
+                    (
+                        MemeLikesSchema::dsl::user_id.eq(from_user_id),
+                        MemeLikesSchema::dsl::meme_uuid.eq(uuid),
+                        MemeLikesSchema::dsl::num.eq(-1)
+                    )
                 )
-            )
-            .execute(&mut *self.get_connection())
-            .is_ok()
+                .execute(&mut *self.get_connection())
+                .is_ok()
         }
     }
 
-    pub fn exists(&self, from_user: &User, uuid: &Uuid) -> bool {
-        let user_id = from_user.id.0 as i64;
-
+    pub fn exists(&self, from_user_id: i64, uuid: &Uuid) -> bool {
         dsl::select(dsl::exists(
             MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-            .filter(MemeLikesSchema::dsl::user_id.eq(user_id))
+                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
         )).get_result(&mut *self.get_connection())
-        .unwrap_or(false)
+            .unwrap_or(false)
     }
 
     pub fn count_likes(&self, uuid: &Uuid) -> i64 {
@@ -159,17 +150,37 @@ impl MemeLikeRepository {
             .unwrap_or(0)
     }
 
-    pub fn meme_of_week(&self) -> Uuid {
-        dsl::select(MemeLikesSchema::dsl::meme_uuid)
-            .filter(MemeLikesSchema::dsl::created_at.gte())
-            .get_result(&mut *self.get_connection())
+    pub fn meme_of_week(&self) -> Result<(Meme, i64), Error> {
+        self.get_top_meme(
+            Utc::now().beginning_of_week().naive_utc(),
+            Utc::now().end_of_week().naive_utc(),
+        )
     }
 
-    pub fn meme_of_month(&self) {
-
+    pub fn meme_of_month(&self) -> Result<(Meme, i64), Error> {
+        self.get_top_meme(
+            Utc::now().beginning_of_month().naive_utc(),
+            Utc::now().end_of_month().naive_utc(),
+        )
     }
 
-    pub fn meme_of_year(&self) {
+    pub fn meme_of_year(&self) -> Result<(Meme, i64), Error> {
+        self.get_top_meme(
+            Utc::now().beginning_of_year().naive_utc(),
+            Utc::now().end_of_year().naive_utc(),
+        )
+    }
 
+    fn get_top_meme(&self, start: NaiveDateTime, end: NaiveDateTime) -> Result<(Meme, i64), Error> {
+        use diesel::sql_types::BigInt;
+
+        MemesSchema::table
+            .left_join(MemeLikesSchema::table)
+            .group_by(MemesSchema::dsl::uuid)
+            .filter(MemeLikesSchema::dsl::created_at.ge(start))
+            .filter(MemeLikesSchema::dsl::created_at.le(end))
+            .select((MemesSchema::all_columns, dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes")))
+            .order_by(dsl::sql::<BigInt>("likes DESC"))
+            .first::<(Meme, i64)>(&mut *self.get_connection())
     }
 }

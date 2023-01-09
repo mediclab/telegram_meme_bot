@@ -1,92 +1,118 @@
 use std::error::Error;
 use std::sync::Arc;
-
-use crate::bot::markups::*;
-use crate::database::models::Meme;
-
-use teloxide::types::MessageId;
-use teloxide::{
-    prelude::*,
-    payloads,
-    requests::JsonRequest,
-};
+use futures::executor::block_on;
 
 use crate::Application;
-use crate::database::repository::*;
+use crate::bot::markups::*;
+use crate::database::{
+    models::Meme,
+    repository::*
+};
 
-pub async fn callback_handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let repository = MemeLikeRepository::new(app.database.clone());
-    let data: MemeCallback = serde_json::from_str(
-        &callback.data.clone().unwrap_or(r#"{}"#.to_string())
-    )?;
-    let meme = MemeRepository::new(app.database.clone())
-        .get(&data.uuid)
-        .unwrap()
-    ;
-    let msg = callback.message.clone().unwrap();
+use teloxide::{
+    prelude::*,
+    types::MessageId
+};
 
-    match data.op {
-        CallbackOperations::Like => {
-            operation_like(&callback, &meme, &bot, &repository).await?;
-        },
-        CallbackOperations::Dislike => {
-            operation_dislike(&callback, &meme, &bot, &repository).await?;
-        },
-        CallbackOperations::Delete => {
-            if meme.user_id != callback.from.id.0 as i64 {
-                bot
-                    .answer_callback_query(callback.id)
-                    .text("Только пользователь отправивший мем, может сделать это")
-                    .show_alert(true)
-                .await?;
+pub struct CallbackHandler {
+    pub app: Arc<Application>,
+    pub bot: Bot,
+    pub callback: CallbackQuery
+}
 
-                return Ok(());
+impl CallbackHandler {
+    pub async fn handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let handler = CallbackHandler { app, bot, callback };
+
+        let data: MemeCallback = serde_json::from_str(
+            &handler.callback.data.clone().unwrap_or(r#"{}"#.to_string())
+        )?;
+
+        let meme = MemeRepository::new(handler.app.database.clone()).get(&data.uuid)?;
+
+        match data.op {
+            CallbackOperations::Like => {
+                handler.like(&meme)?;
             }
-
-            bot.delete_message(msg.chat.id, msg.id).await?;
-            bot.delete_message(msg.chat.id, MessageId { 0: meme.msg_id.unwrap() as i32}).await?;
-        },
-        CallbackOperations::None => {
-            if meme.user_id != callback.from.id.0 as i64 {
-                bot
-                    .answer_callback_query(callback.id)
-                    .text("Только пользователь отправивший мем, может сделать это")
-                    .show_alert(true)
-                .await?;
-                
-                return Ok(());
+            CallbackOperations::Dislike => {
+                handler.dislike(&meme)?;
             }
+            CallbackOperations::Delete => {
+                handler.delete(&meme);
+            }
+            CallbackOperations::None => {
+                handler.none(&meme);
+            }
+        }
 
-            bot.delete_message(msg.chat.id, msg.id).await?;
-        },
+        Ok(())
     }
 
-    Ok(())
-}
+    pub fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let msg = self.callback.message.clone().unwrap();
+        let repository = MemeLikeRepository::new(self.app.database.clone());
 
-fn get_likes(repository: &MemeLikeRepository, meme: &Meme) -> (i64, i64) {
-    (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid))
-}
+        let t = repository.like(self.callback.from.id.0 as i64, &meme.uuid);
+        let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
 
-fn send_reply(meme: &Meme, msg: &Message, counts: (i64, i64), bot: &Bot) -> JsonRequest<payloads::EditMessageReplyMarkup> {
-    let (likes, dislikes) = counts;
-    let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
+        self.update_message(meme, &msg, likes)
+    }
 
-    bot
-        .edit_message_reply_markup(msg.chat.id, msg.id)
-        .reply_markup(meme_markup.get_markup())
-}
+    pub fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let msg = self.callback.message.clone().unwrap();
+        let repository = MemeLikeRepository::new(self.app.database.clone());
 
-fn operation_like(callback: &CallbackQuery, meme: &Meme, bot: &Bot, repository: &MemeLikeRepository) -> JsonRequest<payloads::EditMessageReplyMarkup> {
-    let msg = callback.message.clone().unwrap();
+        let t = repository.dislike(self.callback.from.id.0 as i64, &meme.uuid);
+        let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
 
-    repository.like(&callback.from, &meme.uuid);
-    send_reply(meme, &msg, get_likes(&repository, &meme), bot)
-}
+        self.update_message(meme, &msg, likes)
+    }
 
-fn operation_dislike(callback: &CallbackQuery, meme: &Meme, bot: &Bot, repository: &MemeLikeRepository) -> JsonRequest<payloads::EditMessageReplyMarkup> {
-    let msg = callback.message.clone().unwrap();
+    pub fn none(&self, meme: &Meme) {
+        let msg = self.callback.message.as_ref().unwrap();
 
-    repository.dislike(&callback.from, &meme.uuid);
-    send_reply(meme, &msg, get_likes(&repository, &meme), bot)
+        if meme.user_id != self.callback.from.id.0 as i64 {
+            block_on(async {
+                self.bot
+                    .answer_callback_query(&self.callback.id)
+                    .text("Только пользователь отправивший мем, может сделать это")
+                    .show_alert(true)
+                    .await.expect("Can't answer callback query")
+            });
+
+            return;
+        }
+
+        block_on(async {
+            self.bot
+                .delete_message(msg.chat.id, msg.id)
+                .await.expect("Can't delete message")
+        });
+    }
+
+    pub fn delete(&self, meme: &Meme) {
+        self.none(meme);
+
+        block_on(async {
+            self.bot
+                .delete_message(
+                    ChatId { 0: meme.chat_id },
+                    MessageId { 0: meme.msg_id.unwrap() as i32 }
+                )
+                .await.expect("Can't delete meme");
+        });
+    }
+
+    fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let (likes, dislikes) = counts;
+        let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
+
+        let req = self.bot
+            .edit_message_reply_markup(msg.chat.id, msg.id)
+            .reply_markup(meme_markup.get_markup());
+
+        block_on(req.send())?;
+
+        Ok(())
+    }
 }
