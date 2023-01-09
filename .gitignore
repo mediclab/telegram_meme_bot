@@ -1,4 +1,8 @@
-/target
+/target/
+/.run/
+/.cargo_home/
+/.fleet/
 .env
 .vscode
 .idea
+.DS_Store
