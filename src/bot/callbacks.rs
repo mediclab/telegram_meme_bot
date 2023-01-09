@@ -3,14 +3,11 @@ use std::sync::Arc;
 
 use crate::Application;
 use crate::bot::markups::*;
+use teloxide::prelude::*;
+
 use crate::database::{
     models::Meme,
     repository::*
-};
-
-use teloxide::{
-    prelude::*,
-    types::MessageId
 };
 
 pub struct CallbackHandler {
@@ -85,10 +82,7 @@ impl CallbackHandler {
             return Ok(false);
         }
 
-        self.bot
-            .delete_message(msg.chat.id, msg.id)
-            .await?
-        ;
+        self.bot.delete_message(msg.chat.id, msg.id).await?;
 
         Ok(true)
     }
@@ -98,13 +92,7 @@ impl CallbackHandler {
             return Ok(());
         }
 
-        self.bot
-            .delete_message(
-                ChatId { 0: meme.chat_id },
-                MessageId { 0: meme.msg_id.unwrap() as i32 }
-            )
-            .await?
-        ;
+        self.bot.delete_message(meme.chat_id(), meme.msg_id()).await?;
 
         Ok(())
     }

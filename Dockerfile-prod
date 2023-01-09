@@ -1,0 +1,19 @@
+FROM rust:latest as builder
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y cmake build-essential \
+    && apt-get clean
+
+COPY . /app
+
+RUN cargo build --release
+
+FROM debian:buster-slim
+
+RUN apt-get update && apt-get install -y ca-certificates libpq5 && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/tg_meme_bot /usr/local/bin/tg_meme_bot
+
+CMD ["tg_meme_bot", "--start"]
