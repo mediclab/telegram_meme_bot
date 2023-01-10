@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use chrono::prelude::*;
 use uuid::Uuid;
 use serde_json::Value as Json;
+use teloxide::types::{ChatId, MessageId, UserId};
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
 #[diesel(primary_key(uuid))]
@@ -17,6 +18,20 @@ pub struct Meme {
     pub photos: Option<Json>,
     pub posted_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+}
+
+impl Meme {
+    pub fn chat_id(&self) -> ChatId {
+        ChatId { 0: self.chat_id }
+    }
+
+    pub fn user_id(&self) -> UserId {
+        UserId { 0: self.user_id as u64 }
+    }
+
+    pub fn msg_id(&self) -> MessageId {
+        MessageId { 0: self.msg_id.unwrap() as i32 }
+    }
 }
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable, Associations)]

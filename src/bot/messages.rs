@@ -26,7 +26,7 @@ impl MessagesHandler {
         let handler = MessagesHandler { app, bot, msg };
 
         if handler.msg.chat.id.0 > 0 {
-            //return handler.private().await;
+            return handler.private().await;
         }
 
         match &handler.msg.kind {
@@ -80,7 +80,7 @@ impl MessagesHandler {
                 let bot_msg = self.bot.send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
                     .caption(format!("Оцените мем {}", user_text))
                     .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup())).await?
-                    ;
+                ;
 
                 repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
             }

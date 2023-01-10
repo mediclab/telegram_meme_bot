@@ -176,11 +176,12 @@ impl MemeLikeRepository {
 
         MemesSchema::table
             .left_join(MemeLikesSchema::table)
-            .group_by(MemesSchema::dsl::uuid)
+            .group_by((MemesSchema::dsl::uuid, MemesSchema::dsl::posted_at))
             .filter(MemeLikesSchema::dsl::created_at.ge(start))
             .filter(MemeLikesSchema::dsl::created_at.le(end))
             .select((MemesSchema::all_columns, dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes")))
             .order_by(dsl::sql::<BigInt>("likes DESC"))
+            .then_order_by(MemesSchema::dsl::posted_at.desc())
             .first::<(Meme, i64)>(&mut *self.get_connection())
     }
 }

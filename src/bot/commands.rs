@@ -32,7 +32,7 @@ impl CommandsHandler {
         let handler = CommandsHandler { app, bot, msg, cmd };
 
         if handler.msg.chat.id.0 > 0 {
-            //return handler.private().await;
+            return handler.private().await;
         }
 
         match handler.cmd {
@@ -59,7 +59,7 @@ impl CommandsHandler {
             String::from("Временно недоступно в приватных чатах")
         ).await?;
 
-        Err("Temporary disabled in private chats")?
+        Ok(())
     }
 
     pub async fn help_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
