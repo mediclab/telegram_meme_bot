@@ -1,19 +1,15 @@
-use teloxide::{
-    prelude::*,
-    types::{
-        InputFile,
-        ReplyMarkup,
-        MessageKind,
-    },
-};
+use rand::seq::SliceRandom;
 use std::error::Error;
 use std::sync::Arc;
-use rand::seq::SliceRandom;
+use teloxide::{
+    prelude::*,
+    types::{InputFile, MessageKind, ReplyMarkup},
+};
 
 use crate::bot::markups::*;
 use crate::bot::utils as Utils;
-use crate::Application;
 use crate::database::repository::MemeRepository;
+use crate::Application;
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -22,7 +18,11 @@ pub struct MessagesHandler {
 }
 
 impl MessagesHandler {
-    pub async fn handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn handle(
+        bot: Bot,
+        msg: Message,
+        app: Arc<Application>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let handler = MessagesHandler { app, bot, msg };
 
         if handler.msg.chat.id.0 > 0 {
@@ -37,16 +37,18 @@ impl MessagesHandler {
                 handler.newbie().await?;
             }
             _ => {}
-        }
+        };
 
         Ok(())
     }
 
     pub async fn private(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.bot.send_message(
-            self.msg.chat.id,
-            String::from("Временно недоступно в приватных чатах")
-        ).await?;
+        self.bot
+            .send_message(
+                self.msg.chat.id,
+                String::from("Временно недоступно в приватных чатах"),
+            )
+            .await?;
 
         Ok(())
     }
@@ -61,30 +63,33 @@ impl MessagesHandler {
             return Ok(());
         }
 
-        match self.msg.photo() {
-            Some(photos) => {
-                // If caption contains "nomeme" - nothing to do.
-                if self.msg.caption().unwrap_or("").contains("nomeme") {
-                    return Ok(());
-                }
+        if let Some(photos) = self.msg.photo() {
+            // If caption contains "nomeme" - nothing to do.
+            if self.msg.caption().unwrap_or("").contains("nomeme") {
+                return Ok(());
+            }
 
-                let meme = repository.add(
+            let meme = repository
+                .add(
                     self.msg.from().unwrap().id.0 as i64,
                     self.msg.chat.id.0 as i64,
-                    serde_json::json!(self.msg.photo())
-                ).unwrap();
+                    serde_json::json!(self.msg.photo()),
+                )
+                .unwrap();
 
-                self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
+            self.bot
+                .delete_message(self.msg.chat.id, self.msg.id)
+                .await?;
 
-                let markup = MemeMarkup::new(0, 0, meme.uuid);
-                let bot_msg = self.bot.send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
-                    .caption(format!("Оцените мем {}", user_text))
-                    .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup())).await?
-                ;
+            let markup = MemeMarkup::new(0, 0, meme.uuid);
+            let bot_msg = self
+                .bot
+                .send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
+                .caption(format!("Оцените мем {}", user_text))
+                .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
+                .await?;
 
-                repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
-            }
-            None => {}
+            repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
         }
 
         Ok(())
@@ -101,20 +106,25 @@ impl MessagesHandler {
             "Добро пожаловать, {user_name}! К сожалению, ваше заявление на отсрочку от мобилизации не будет принято, пока вы не пришлете мем в этот чат.",
         ];
 
-        self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
+        self.bot
+            .delete_message(self.msg.chat.id, self.msg.id)
+            .await?;
 
-        let users = self.msg.new_chat_members().expect("New chat members not found!");
+        let users = self
+            .msg
+            .new_chat_members()
+            .expect("New chat members not found!");
 
-        let a: Vec<String> = users.iter().map(|user| {
-            Utils::get_user_text(user)
-        }).collect();
+        let a: Vec<String> = users.iter().map(Utils::get_user_text).collect();
 
-        let message = newbie_msg.choose(&mut rand::thread_rng()).unwrap();
+        let message = *newbie_msg.choose(&mut rand::thread_rng()).unwrap();
 
-        self.bot.send_message(
-            self.msg.chat.id,
-            message.clone().replace("{user_name}", a.join(", ").as_str()),
-        ).await?;
+        self.bot
+            .send_message(
+                self.msg.chat.id,
+                <&str>::clone(&message).replace("{user_name}", a.join(", ").as_str()),
+            )
+            .await?;
 
         Ok(())
     }

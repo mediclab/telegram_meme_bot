@@ -1,8 +1,8 @@
+use core::fmt::Debug;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-use core::fmt::Debug;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum CallbackOperations {
@@ -26,28 +26,40 @@ pub struct MemeMarkup {
 
 impl MemeMarkup {
     pub fn new(likes: i64, dislikes: i64, uuid: Uuid) -> Self {
-        Self { likes, dislikes, uuid }
+        Self {
+            likes,
+            dislikes,
+            uuid,
+        }
     }
 
     pub fn get_markup(&self) -> InlineKeyboardMarkup {
-        InlineKeyboardMarkup::new(
-            vec![vec![
-                InlineKeyboardButton::callback(
-                    format!(
-                        "{} Like ({})", emojis::get_by_shortcode("heart").unwrap().as_str(),
-                        self.likes
-                    ),
-                    json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::Like}).to_string(),
+        InlineKeyboardMarkup::new(vec![vec![
+            InlineKeyboardButton::callback(
+                format!(
+                    "{} Like ({})",
+                    emojis::get_by_shortcode("heart").unwrap().as_str(),
+                    self.likes
                 ),
-                InlineKeyboardButton::callback(
-                    format!(
-                        "{} Dislike ({})", emojis::get_by_shortcode("broken_heart").unwrap().as_str(),
-                        self.dislikes
-                    ),
-                    json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::Dislike}).to_string(),
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::Like
+                })
+                .to_string(),
+            ),
+            InlineKeyboardButton::callback(
+                format!(
+                    "{} Dislike ({})",
+                    emojis::get_by_shortcode("broken_heart").unwrap().as_str(),
+                    self.dislikes
                 ),
-            ]]
-        )
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::Dislike
+                })
+                .to_string(),
+            ),
+        ]])
     }
 }
 
@@ -61,28 +73,30 @@ impl AccordeonMarkup {
     }
 
     pub fn get_markup(&self) -> InlineKeyboardMarkup {
-        InlineKeyboardMarkup::new(
-            vec![
-                vec![
-                    InlineKeyboardButton::callback(
-                        format!(
-                            "{} Беру на себя ответственность",
-                            emojis::get_by_shortcode("thumbsup").unwrap().as_str()
-                        ),
-                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::None}).to_string(),
-                    )
-                ],
-                vec![
-                    InlineKeyboardButton::callback(
-                        format!(
-                            "{} Удалите, прошу прощения",
-                            emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
-                        ),
-                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::Delete}).to_string(),
-                    )
-                ],
-            ]
-        )
+        InlineKeyboardMarkup::new(vec![
+            vec![InlineKeyboardButton::callback(
+                format!(
+                    "{} Беру на себя ответственность",
+                    emojis::get_by_shortcode("thumbsup").unwrap().as_str()
+                ),
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::None
+                })
+                .to_string(),
+            )],
+            vec![InlineKeyboardButton::callback(
+                format!(
+                    "{} Удалите, прошу прощения",
+                    emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
+                ),
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::Delete
+                })
+                .to_string(),
+            )],
+        ])
     }
 }
 
@@ -96,27 +110,29 @@ impl DeleteMarkup {
     }
 
     pub fn get_markup(&self) -> InlineKeyboardMarkup {
-        InlineKeyboardMarkup::new(
-            vec![
-                vec![
-                    InlineKeyboardButton::callback(
-                        format!(
-                            "{} Нет, я передумал(а)",
-                            emojis::get_by_shortcode("x").unwrap().as_str()
-                        ),
-                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::None}).to_string(),
-                    )
-                ],
-                vec![
-                    InlineKeyboardButton::callback(
-                        format!(
-                            "{} Да, я хочу удалить",
-                            emojis::get_by_shortcode("wastebasket").unwrap().as_str()
-                        ),
-                        json!(MemeCallback { uuid: self.uuid, op: CallbackOperations::Delete}).to_string(),
-                    )
-                ],
-            ]
-        )
+        InlineKeyboardMarkup::new(vec![
+            vec![InlineKeyboardButton::callback(
+                format!(
+                    "{} Нет, я передумал(а)",
+                    emojis::get_by_shortcode("x").unwrap().as_str()
+                ),
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::None
+                })
+                .to_string(),
+            )],
+            vec![InlineKeyboardButton::callback(
+                format!(
+                    "{} Да, я хочу удалить",
+                    emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                ),
+                json!(MemeCallback {
+                    uuid: self.uuid,
+                    op: CallbackOperations::Delete
+                })
+                .to_string(),
+            )],
+        ])
     }
 }

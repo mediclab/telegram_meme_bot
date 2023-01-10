@@ -1,11 +1,11 @@
-use crate::database::schema::memes as MemesSchema;
 use crate::database::schema::meme_likes as MemeLikesSchema;
+use crate::database::schema::memes as MemesSchema;
 
-use diesel::prelude::*;
 use chrono::prelude::*;
-use uuid::Uuid;
+use diesel::prelude::*;
 use serde_json::Value as Json;
 use teloxide::types::{ChatId, MessageId, UserId};
+use uuid::Uuid;
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
 #[diesel(primary_key(uuid))]
@@ -22,15 +22,15 @@ pub struct Meme {
 
 impl Meme {
     pub fn chat_id(&self) -> ChatId {
-        ChatId { 0: self.chat_id }
+        ChatId(self.chat_id)
     }
 
     pub fn user_id(&self) -> UserId {
-        UserId { 0: self.user_id as u64 }
+        UserId(self.user_id as u64)
     }
 
     pub fn msg_id(&self) -> MessageId {
-        MessageId { 0: self.msg_id.unwrap() as i32 }
+        MessageId(self.msg_id.unwrap() as i32)
     }
 }
 
