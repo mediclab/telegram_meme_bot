@@ -1,0 +1,40 @@
+name: Docker Image CI
+
+on:
+  push:
+    tags: [ "*" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set version from Cargo.toml
+        run: |
+          echo "version=$(cat Cargo.toml | grep -A3 '^\[package\]$' | grep -Po '(?<=^version = ")[^"]*(?=".*)')" >> $GITHUB_ENV
+      - name: Check versions
+        if: ${{ github.ref_name }} != ${{ env.version }}
+        run: |
+          echo "::error::Tag version is not equals version from Cargo.toml"
+          exit 1
+      - name: Build application
+        run: cargo build --verbose
+      - name: Run application tests
+        run: cargo test --verbose
+      - name: Build the Docker image
+        env:
+          HOST: ${{ secrets.DOCKER_HOME_HOST }}
+        run: |
+          docker build . --file Dockerfile-prod --tag $HOST/mediclab/tg_meme_bot:${{ github.ref_name }} --tag $HOST/mediclab/tg_meme_bot:latest
+      - name: Push image to Private Docker
+        env:
+          DOCKER_PASSWD: ${{ secrets.DOCKER_HOME_PASSWORD }}
+          DOCKER_LOGIN: ${{ secrets.DOCKER_HOME_LOGIN }}
+          HOST: ${{ secrets.DOCKER_HOME_HOST }}
+        run: |
+          echo "$DOCKER_PASSWD" | docker login --username "$DOCKER_LOGIN" --password-stdin $HOST
+          docker push -a $HOST/mediclab/tg_meme_bot

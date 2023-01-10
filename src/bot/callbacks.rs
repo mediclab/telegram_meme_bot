@@ -1,27 +1,32 @@
 use std::error::Error;
 use std::sync::Arc;
 
-use crate::Application;
 use crate::bot::markups::*;
+use crate::Application;
 use teloxide::prelude::*;
 
-use crate::database::{
-    models::Meme,
-    repository::*
-};
+use crate::database::{models::Meme, repository::*};
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,
     pub bot: Bot,
-    pub callback: CallbackQuery
+    pub callback: CallbackQuery,
 }
 
 impl CallbackHandler {
-    pub async fn handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn handle(
+        bot: Bot,
+        callback: CallbackQuery,
+        app: Arc<Application>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let handler = CallbackHandler { app, bot, callback };
 
         let data: MemeCallback = serde_json::from_str(
-            &handler.callback.data.clone().unwrap_or(r#"{}"#.to_string())
+            &handler
+                .callback
+                .data
+                .clone()
+                .unwrap_or_else(|| r#"{}"#.to_string()),
         )?;
 
         let meme = MemeRepository::new(handler.app.database.clone()).get(&data.uuid)?;
@@ -49,7 +54,10 @@ impl CallbackHandler {
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
         repository.like(self.callback.from.id.0 as i64, &meme.uuid);
-        let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
+        let likes = (
+            repository.count_likes(&meme.uuid),
+            repository.count_dislikes(&meme.uuid),
+        );
 
         self.update_message(meme, &msg, likes).await?;
 
@@ -61,7 +69,10 @@ impl CallbackHandler {
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
         repository.dislike(self.callback.from.id.0 as i64, &meme.uuid);
-        let likes = (repository.count_likes(&meme.uuid), repository.count_dislikes(&meme.uuid));
+        let likes = (
+            repository.count_likes(&meme.uuid),
+            repository.count_dislikes(&meme.uuid),
+        );
 
         self.update_message(meme, &msg, likes).await?;
 
@@ -76,8 +87,7 @@ impl CallbackHandler {
                 .answer_callback_query(&self.callback.id)
                 .text("Только пользователь отправивший мем, может сделать это")
                 .show_alert(true)
-                .await?
-            ;
+                .await?;
 
             return Ok(false);
         }
@@ -92,20 +102,28 @@ impl CallbackHandler {
             return Ok(());
         }
 
-        self.bot.delete_message(meme.chat_id(), meme.msg_id()).await?;
+        self.bot
+            .delete_message(meme.chat_id(), meme.msg_id())
+            .await?;
+
+        MemeRepository::new(self.app.database.clone()).delete(&meme.uuid);
 
         Ok(())
     }
 
-    async fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn update_message(
+        &self,
+        meme: &Meme,
+        msg: &Message,
+        counts: (i64, i64),
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (likes, dislikes) = counts;
         let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
 
         self.bot
             .edit_message_reply_markup(msg.chat.id, msg.id)
             .reply_markup(meme_markup.get_markup())
-            .await?
-        ;
+            .await?;
 
         Ok(())
     }

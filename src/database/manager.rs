@@ -1,5 +1,5 @@
 use diesel::pg::PgConnection;
-use diesel::r2d2::{Pool, ConnectionManager, PoolError};
+use diesel::r2d2::{ConnectionManager, Pool, PoolError};
 
 use crate::database::PgPool;
 use crate::database::PgPooledConnection;
@@ -14,7 +14,7 @@ impl DBManager {
         DBManager {
             pool: Pool::builder()
                 .build(ConnectionManager::<PgConnection>::new(database_url))
-                .expect("Failed to create pool")
+                .expect("Failed to create pool"),
         }
     }
 

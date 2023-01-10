@@ -2,6 +2,7 @@
 /.run/
 /.cargo_home/
 /.fleet/
+/.github/
 .env
 .vscode
 .idea
