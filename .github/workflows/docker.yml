@@ -18,7 +18,7 @@ jobs:
           echo "app_version=$(cat Cargo.toml | grep -A3 '^\[package\]$' | grep -Po '(?<=^version = ")[^"]*(?=".*)' | tr -dc 0-9)"  >> $GITHUB_ENV
           echo "tag_version=$(echo ${{ github.ref_name }} | tr -dc 0-9)" >> $GITHUB_ENV
       - name: Check versions
-        if: ${{ env.tag_version }} != ${{ env.app_version }}
+        if: ${{ env.tag_version != env.app_version }}
         run: |
           echo "::error::Tag version = ${{ env.tag_version }} is not equals version from Cargo.toml = ${{ env.app_version }}"
           exit 1
