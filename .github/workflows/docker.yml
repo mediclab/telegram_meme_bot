@@ -19,7 +19,7 @@ jobs:
       - name: Check versions
         if: ${{ github.ref_name }} != ${{ env.version }}
         run: |
-          echo "::error::Tag version is not equals version from Cargo.toml"
+          echo "::error::Tag version = ${{ github.ref_name }} is not equals version from Cargo.toml = ${{ env.version }}"
           exit 1
       - name: Build application
         run: cargo build --verbose
