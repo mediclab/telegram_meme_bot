@@ -62,6 +62,13 @@ impl MemeRepository {
             .filter(MemesSchema::dsl::chat_id.eq(chat_id))
             .first(&mut *self.get_connection())
     }
+
+    pub fn delete(&self, uuid: &Uuid) -> bool {
+        diesel::delete(MemesSchema::table)
+            .filter(MemesSchema::dsl::uuid.eq(uuid))
+            .execute(&mut *self.get_connection())
+            .is_ok()
+    }
 }
 
 pub struct MemeLikeRepository {

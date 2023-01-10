@@ -94,6 +94,8 @@ impl CallbackHandler {
 
         self.bot.delete_message(meme.chat_id(), meme.msg_id()).await?;
 
+        MemeRepository::new(self.app.database.clone()).delete(&meme.uuid);
+
         Ok(())
     }
 
