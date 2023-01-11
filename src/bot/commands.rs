@@ -97,9 +97,7 @@ impl CommandsHandler {
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {
-                    let meme = repository
-                        .get_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
-                        .unwrap();
+                    let meme = repository.get_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
 
                     self.bot
                         .delete_message(self.msg.chat.id, self.msg.id)

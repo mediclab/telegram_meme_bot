@@ -1,5 +1,4 @@
 use chrono::prelude::*;
-use now::DateTimeNow;
 use serde_json::Value as Json;
 use uuid::Uuid;
 
@@ -8,6 +7,7 @@ use crate::database::{
     schema::memes as MemesSchema, PgPooledConnection,
 };
 
+use crate::bot::utils::*;
 use diesel::{dsl, prelude::*, result::Error};
 
 pub struct MemeRepository {
@@ -128,24 +128,24 @@ impl MemeLikeRepository {
     }
 
     pub fn meme_of_week(&self) -> Result<(Meme, i64), Error> {
-        self.get_top_meme(
-            Utc::now().beginning_of_week().naive_utc(),
-            Utc::now().end_of_week().naive_utc(),
-        )
+        let start = first_workday_of_week();
+        let end = last_workday_of_week();
+
+        self.get_top_meme(start.naive_utc(), end.naive_utc())
     }
 
     pub fn meme_of_month(&self) -> Result<(Meme, i64), Error> {
-        self.get_top_meme(
-            Utc::now().beginning_of_month().naive_utc(),
-            Utc::now().end_of_month().naive_utc(),
-        )
+        let start = first_workday_of_month();
+        let end = last_workday_of_month();
+
+        self.get_top_meme(start.naive_utc(), end.naive_utc())
     }
 
     pub fn meme_of_year(&self) -> Result<(Meme, i64), Error> {
-        self.get_top_meme(
-            Utc::now().beginning_of_year().naive_utc(),
-            Utc::now().end_of_year().naive_utc(),
-        )
+        let start = first_workday_of_year();
+        let end = last_workday_of_year();
+
+        self.get_top_meme(start.naive_utc(), end.naive_utc())
     }
 
     fn get_top_meme(&self, start: NaiveDateTime, end: NaiveDateTime) -> Result<(Meme, i64), Error> {
@@ -154,8 +154,8 @@ impl MemeLikeRepository {
         MemesSchema::table
             .left_join(MemeLikesSchema::table)
             .group_by((MemesSchema::dsl::uuid, MemesSchema::dsl::posted_at))
-            .filter(MemeLikesSchema::dsl::created_at.ge(start))
-            .filter(MemeLikesSchema::dsl::created_at.le(end))
+            .filter(MemesSchema::dsl::posted_at.ge(start))
+            .filter(MemesSchema::dsl::posted_at.le(end))
             .select((
                 MemesSchema::all_columns,
                 dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes"),
