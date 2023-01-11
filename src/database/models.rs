@@ -45,3 +45,17 @@ pub struct MemeLike {
     pub num: i16,
     pub created_at: Option<NaiveDateTime>,
 }
+
+pub enum MemeLikeOperation {
+    Like,
+    Dislike,
+}
+
+impl MemeLikeOperation {
+    pub fn id(&self) -> i16 {
+        match *self {
+            MemeLikeOperation::Like => 1,
+            MemeLikeOperation::Dislike => -1,
+        }
+    }
+}

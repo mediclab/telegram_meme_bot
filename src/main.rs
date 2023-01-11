@@ -9,7 +9,7 @@ use bot::{
     messages::MessagesHandler,
 };
 use clap::{Arg, ArgMatches, Command};
-use database::{manager::DBManager, repository::MemeLikeRepository};
+use database::manager::DBManager;
 use dotenv::dotenv;
 use std::{env, process::exit, sync::Arc};
 use teloxide::{prelude::*, types::Me};
@@ -21,94 +21,44 @@ pub struct Application {
 
 #[tokio::main]
 async fn main() {
+    const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
+
     dotenv().ok();
     pretty_env_logger::init();
 
     let bot = Bot::from_env();
-    let state = Arc::new(Application {
+    let app = Arc::new(Application {
         database: DBManager::connect(env::var("DATABASE_URL").expect("DATABASE_URL must be set")),
         bot: bot.get_me().await.expect("Can't get bot information"),
     });
 
     if is_arg("meme_of_week") {
-        let meme = MemeLikeRepository::new(state.database.clone())
-            .meme_of_week()
-            .unwrap();
-
-        let user = bot
-            .get_chat_member(meme.0.chat_id(), meme.0.user_id())
+        bot::top::meme_of_week(&bot, &app)
             .await
-            .expect("Can't get user for meme of week")
-            .user;
-
-        bot.send_message(
-            meme.0.chat_id(),
-            format!(
-                "{} твой мем набрал {} лайк(ов)!\nБольше всех на этой неделе!\nПоздравляю!",
-                bot::utils::get_user_text(&user),
-                meme.1
-            ),
-        )
-        .reply_to_message_id(meme.0.msg_id())
-        .await
-        .expect("Can't send message");
+            .expect("Can't send meme of week");
 
         exit(0);
     }
 
     if is_arg("meme_of_month") {
-        let meme = MemeLikeRepository::new(state.database.clone())
-            .meme_of_month()
-            .unwrap();
-
-        let user = bot
-            .get_chat_member(meme.0.chat_id(), meme.0.user_id())
+        bot::top::meme_of_month(&bot, &app)
             .await
-            .expect("Can't get user for meme of month")
-            .user;
-
-        bot.send_message(
-            meme.0.chat_id(),
-            format!(
-                "{} твой мем набрал {} лайк(ов)!\nБольше всех в этом месяце!\nПоздравляю!",
-                bot::utils::get_user_text(&user),
-                meme.1
-            ),
-        )
-        .reply_to_message_id(meme.0.msg_id())
-        .await
-        .expect("Can't send message");
+            .expect("Can't send meme of month");
 
         exit(0);
     }
 
     if is_arg("meme_of_year") {
-        let meme = MemeLikeRepository::new(state.database.clone())
-            .meme_of_year()
-            .unwrap();
-
-        let user = bot
-            .get_chat_member(meme.0.chat_id(), meme.0.user_id())
+        bot::top::meme_of_year(&bot, &app)
             .await
-            .expect("Can't get user for meme of year")
-            .user;
-
-        bot.send_message(
-            meme.0.chat_id(),
-            format!(
-                "{} твой мем набрал {} лайк(ов)!\nБольше всех в этом году!\nПоздравляю!",
-                bot::utils::get_user_text(&user),
-                meme.1
-            ),
-        )
-        .reply_to_message_id(meme.0.msg_id())
-        .await
-        .expect("Can't send message");
+            .expect("Can't send meme of year");
 
         exit(0);
     }
 
     if is_arg("start") {
+        println!("MemeBot version = {}", VERSION.unwrap_or("unknown"));
+
         let handler = dptree::entry()
             .branch(
                 Update::filter_message()
@@ -121,7 +71,7 @@ async fn main() {
         println!("Starting dispatch...");
 
         Dispatcher::builder(bot, handler)
-            .dependencies(dptree::deps![Arc::clone(&state)])
+            .dependencies(dptree::deps![Arc::clone(&app)])
             .enable_ctrlc_handler()
             .build()
             .dispatch()

@@ -51,9 +51,15 @@ impl CallbackHandler {
 
     pub async fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
+        let user_id = self.callback.from.id.0 as i64;
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
-        repository.like(self.callback.from.id.0 as i64, &meme.uuid);
+        if repository.like_exists(user_id, &meme.uuid) {
+            repository.cancel_like(user_id, &meme.uuid);
+        } else {
+            repository.like(user_id, &meme.uuid);
+        }
+
         let likes = (
             repository.count_likes(&meme.uuid),
             repository.count_dislikes(&meme.uuid),
@@ -66,9 +72,15 @@ impl CallbackHandler {
 
     pub async fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
+        let user_id = self.callback.from.id.0 as i64;
         let repository = MemeLikeRepository::new(self.app.database.clone());
 
-        repository.dislike(self.callback.from.id.0 as i64, &meme.uuid);
+        if repository.dislike_exists(user_id, &meme.uuid) {
+            repository.cancel_dislike(user_id, &meme.uuid);
+        } else {
+            repository.dislike(user_id, &meme.uuid);
+        }
+
         let likes = (
             repository.count_likes(&meme.uuid),
             repository.count_dislikes(&meme.uuid),
