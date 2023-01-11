@@ -119,6 +119,10 @@ impl CommandsHandler {
             }
             None => {
                 self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+
+                self.bot
                     .send_message(
                         self.msg.chat.id,
                         String::from("Чтобы пожаловаться на сообщение, на него нужно ответить!"),
@@ -156,6 +160,10 @@ impl CommandsHandler {
                 }
             }
             None => {
+                self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+
                 self.bot
                     .send_message(
                         self.msg.chat.id,

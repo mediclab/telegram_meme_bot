@@ -88,71 +88,43 @@ impl MemeLikeRepository {
     }
 
     pub fn like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        if self.exists(from_user_id, uuid) {
-            diesel::update(MemeLikesSchema::table)
-                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
-                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-                .set(MemeLikesSchema::dsl::num.eq(1))
-                .execute(&mut *self.get_connection())
-                .is_ok()
+        if self.exists_any(from_user_id, uuid) {
+            self.update(from_user_id, uuid, MemeLikeOperation::Like)
         } else {
-            diesel::insert_into(MemeLikesSchema::table)
-                .values((
-                    MemeLikesSchema::dsl::user_id.eq(from_user_id),
-                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
-                    MemeLikesSchema::dsl::num.eq(1),
-                ))
-                .execute(&mut *self.get_connection())
-                .is_ok()
+            self.insert(from_user_id, uuid, MemeLikeOperation::Like)
         }
     }
 
     pub fn dislike(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        if self.exists(from_user_id, uuid) {
-            diesel::update(MemeLikesSchema::table)
-                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
-                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-                .set(MemeLikesSchema::dsl::num.eq(-1))
-                .execute(&mut *self.get_connection())
-                .is_ok()
+        if self.exists_any(from_user_id, uuid) {
+            self.update(from_user_id, uuid, MemeLikeOperation::Dislike)
         } else {
-            diesel::insert_into(MemeLikesSchema::table)
-                .values((
-                    MemeLikesSchema::dsl::user_id.eq(from_user_id),
-                    MemeLikesSchema::dsl::meme_uuid.eq(uuid),
-                    MemeLikesSchema::dsl::num.eq(-1),
-                ))
-                .execute(&mut *self.get_connection())
-                .is_ok()
+            self.insert(from_user_id, uuid, MemeLikeOperation::Dislike)
         }
     }
 
-    pub fn exists(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        dsl::select(dsl::exists(
-            MemeLikesSchema::table
-                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id)),
-        ))
-        .get_result(&mut *self.get_connection())
-        .unwrap_or(false)
+    pub fn cancel_like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        self.cancel(from_user_id, uuid, MemeLikeOperation::Like)
+    }
+
+    pub fn cancel_dislike(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        self.cancel(from_user_id, uuid, MemeLikeOperation::Dislike)
+    }
+
+    pub fn like_exists(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        self.exists(from_user_id, uuid, MemeLikeOperation::Like)
+    }
+
+    pub fn dislike_exists(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        self.exists(from_user_id, uuid, MemeLikeOperation::Dislike)
     }
 
     pub fn count_likes(&self, uuid: &Uuid) -> i64 {
-        MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-            .filter(MemeLikesSchema::dsl::num.eq(1))
-            .count()
-            .get_result(&mut *self.get_connection())
-            .unwrap_or(0)
+        self.count(uuid, MemeLikeOperation::Like)
     }
 
     pub fn count_dislikes(&self, uuid: &Uuid) -> i64 {
-        MemeLikesSchema::table
-            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-            .filter(MemeLikesSchema::dsl::num.eq(-1))
-            .count()
-            .get_result(&mut *self.get_connection())
-            .unwrap_or(0)
+        self.count(uuid, MemeLikeOperation::Dislike)
     }
 
     pub fn meme_of_week(&self) -> Result<(Meme, i64), Error> {
@@ -191,5 +163,64 @@ impl MemeLikeRepository {
             .order_by(dsl::sql::<BigInt>("likes DESC"))
             .then_order_by(MemesSchema::dsl::posted_at.desc())
             .first::<(Meme, i64)>(&mut *self.get_connection())
+    }
+
+    fn update(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
+        diesel::update(MemeLikesSchema::table)
+            .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+            .set(MemeLikesSchema::dsl::num.eq(operation.id()))
+            .execute(&mut *self.get_connection())
+            .is_ok()
+    }
+
+    fn insert(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
+        diesel::insert_into(MemeLikesSchema::table)
+            .values((
+                MemeLikesSchema::dsl::user_id.eq(from_user_id),
+                MemeLikesSchema::dsl::meme_uuid.eq(uuid),
+                MemeLikesSchema::dsl::num.eq(operation.id()),
+            ))
+            .execute(&mut *self.get_connection())
+            .is_ok()
+    }
+
+    fn cancel(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
+        diesel::delete(MemeLikesSchema::table)
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+            .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
+            .filter(MemeLikesSchema::dsl::num.eq(operation.id()))
+            .execute(&mut *self.get_connection())
+            .is_ok()
+    }
+
+    fn exists(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
+        dsl::select(dsl::exists(
+            MemeLikesSchema::table
+                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
+                .filter(MemeLikesSchema::dsl::num.eq(operation.id())),
+        ))
+        .get_result(&mut *self.get_connection())
+        .unwrap_or(false)
+    }
+
+    fn exists_any(&self, from_user_id: i64, uuid: &Uuid) -> bool {
+        dsl::select(dsl::exists(
+            MemeLikesSchema::table
+                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id)),
+        ))
+        .get_result(&mut *self.get_connection())
+        .unwrap_or(false)
+    }
+
+    fn count(&self, uuid: &Uuid, operation: MemeLikeOperation) -> i64 {
+        MemeLikesSchema::table
+            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
+            .filter(MemeLikesSchema::dsl::num.eq(operation.id()))
+            .count()
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
     }
 }
