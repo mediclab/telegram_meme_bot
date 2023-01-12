@@ -88,19 +88,11 @@ impl MemeLikeRepository {
     }
 
     pub fn like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        if self.exists_any(from_user_id, uuid) {
-            self.update(from_user_id, uuid, MemeLikeOperation::Like)
-        } else {
-            self.insert(from_user_id, uuid, MemeLikeOperation::Like)
-        }
+        self.insert(from_user_id, uuid, MemeLikeOperation::Like)
     }
 
     pub fn dislike(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        if self.exists_any(from_user_id, uuid) {
-            self.update(from_user_id, uuid, MemeLikeOperation::Dislike)
-        } else {
-            self.insert(from_user_id, uuid, MemeLikeOperation::Dislike)
-        }
+        self.insert(from_user_id, uuid, MemeLikeOperation::Dislike)
     }
 
     pub fn cancel_like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
@@ -165,15 +157,6 @@ impl MemeLikeRepository {
             .first::<(Meme, i64)>(&mut *self.get_connection())
     }
 
-    fn update(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
-        diesel::update(MemeLikesSchema::table)
-            .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
-            .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-            .set(MemeLikesSchema::dsl::num.eq(operation.id()))
-            .execute(&mut *self.get_connection())
-            .is_ok()
-    }
-
     fn insert(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
         diesel::insert_into(MemeLikesSchema::table)
             .values((
@@ -181,6 +164,12 @@ impl MemeLikeRepository {
                 MemeLikesSchema::dsl::meme_uuid.eq(uuid),
                 MemeLikesSchema::dsl::num.eq(operation.id()),
             ))
+            .on_conflict((
+                MemeLikesSchema::dsl::user_id,
+                MemeLikesSchema::dsl::meme_uuid,
+            ))
+            .do_update()
+            .set(MemeLikesSchema::dsl::num.eq(operation.id()))
             .execute(&mut *self.get_connection())
             .is_ok()
     }
@@ -200,16 +189,6 @@ impl MemeLikeRepository {
                 .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
                 .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
                 .filter(MemeLikesSchema::dsl::num.eq(operation.id())),
-        ))
-        .get_result(&mut *self.get_connection())
-        .unwrap_or(false)
-    }
-
-    fn exists_any(&self, from_user_id: i64, uuid: &Uuid) -> bool {
-        dsl::select(dsl::exists(
-            MemeLikesSchema::table
-                .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
-                .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id)),
         ))
         .get_result(&mut *self.get_connection())
         .unwrap_or(false)

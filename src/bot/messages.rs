@@ -36,6 +36,9 @@ impl MessagesHandler {
             MessageKind::NewChatMembers(_) => {
                 handler.newbie().await?;
             }
+            MessageKind::LeftChatMember(_) => {
+                handler.left().await?;
+            }
             _ => {}
         };
 
@@ -54,25 +57,25 @@ impl MessagesHandler {
     }
 
     pub async fn common(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let user = self.msg.from().unwrap();
-        let repository = MemeRepository::new(self.app.database.clone());
-        let user_text = Utils::get_user_text(user);
-
         // If This is forwarded message - nothing to do.
         if self.msg.forward().is_some() {
             return Ok(());
         }
 
-        if let Some(photos) = self.msg.photo() {
-            // If caption contains "nomeme" - nothing to do.
-            if self.msg.caption().unwrap_or("").contains("nomeme") {
-                return Ok(());
-            }
+        // If caption contains "nomeme" - nothing to do.
+        if self.msg.caption().unwrap_or("").contains("nomeme") {
+            return Ok(());
+        }
 
+        let user = self.msg.from().unwrap();
+        let repository = MemeRepository::new(self.app.database.clone());
+        let user_text = Utils::get_user_text(user);
+
+        if let Some(photos) = self.msg.photo() {
             let meme = repository
                 .add(
                     self.msg.from().unwrap().id.0 as i64,
-                    self.msg.chat.id.0 as i64,
+                    self.msg.chat.id.0,
                     serde_json::json!(self.msg.photo()),
                 )
                 .unwrap();
@@ -86,6 +89,30 @@ impl MessagesHandler {
                 .bot
                 .send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
                 .caption(format!("Оцените мем {}", user_text))
+                .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
+                .await?;
+
+            repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+        }
+
+        if let Some(video) = self.msg.video() {
+            let meme = repository
+                .add(
+                    self.msg.from().unwrap().id.0 as i64,
+                    self.msg.chat.id.0,
+                    serde_json::json!(self.msg.video()),
+                )
+                .unwrap();
+
+            self.bot
+                .delete_message(self.msg.chat.id, self.msg.id)
+                .await?;
+
+            let markup = MemeMarkup::new(0, 0, meme.uuid);
+            let bot_msg = self
+                .bot
+                .send_video(self.msg.chat.id, InputFile::file_id(&video.file.id))
+                .caption(format!("Оцените видео-мем {}", user_text))
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
@@ -123,6 +150,26 @@ impl MessagesHandler {
             .send_message(
                 self.msg.chat.id,
                 <&str>::clone(&message).replace("{user_name}", a.join(", ").as_str()),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn left(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.bot
+            .delete_message(self.msg.chat.id, self.msg.id)
+            .await?;
+
+        let user = self.msg.left_chat_member().expect("Left users not found!");
+
+        self.bot
+            .send_message(
+                self.msg.chat.id,
+                format!(
+                    "Штош, {} ливнул с нашего лампового чатика. Психика не выдержала, видимо.\nБудем скучать (нет)",
+                    Utils::get_user_text(user)
+                ),
             )
             .await?;
 
