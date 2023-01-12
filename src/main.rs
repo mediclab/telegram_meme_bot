@@ -17,6 +17,7 @@ use teloxide::{prelude::*, types::Me};
 pub struct Application {
     pub database: DBManager,
     pub bot: Me,
+    pub version: String,
 }
 
 #[tokio::main]
@@ -30,6 +31,7 @@ async fn main() {
     let app = Arc::new(Application {
         database: DBManager::connect(env::var("DATABASE_URL").expect("DATABASE_URL must be set")),
         bot: bot.get_me().await.expect("Can't get bot information"),
+        version: VERSION.unwrap_or("unknown").to_string(),
     });
 
     if is_arg("meme_of_week") {

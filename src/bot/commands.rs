@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::sync::Arc;
+use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::database::repository::MemeRepository;
@@ -77,7 +78,15 @@ impl CommandsHandler {
 
     pub async fn help_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.bot
-            .send_message(self.msg.chat.id, Command::descriptions().to_string())
+            .send_message(
+                self.msg.chat.id,
+                format!(
+                    "{}\n\nВерсия бота: {}\nIssue\\Предложения: <a href=\"https://github.com/mediclab/telegram_meme_bot/issues\">сюды</a>",
+                    Command::descriptions(),
+                    self.app.version
+                ),
+            )
+            .parse_mode(ParseMode::Html)
             .await?;
 
         Ok(())
