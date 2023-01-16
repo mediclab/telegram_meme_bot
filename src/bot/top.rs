@@ -6,31 +6,20 @@ use std::error::Error;
 use teloxide::prelude::*;
 use teloxide::types::User;
 
-pub enum Top {
-    Week,
-    Month,
-    Year,
-}
-
-impl Top {
-    pub fn name(&self) -> String {
-        match *self {
-            Top::Week => String::from("Больше всех на этой неделе!"),
-            Top::Month => String::from("Больше всех в этом месяце!"),
-            Top::Year => String::from("Больше всех в этом году!"),
-        }
-    }
-}
-
 pub async fn meme_of_week(
     bot: &Bot,
     app: &Application,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (meme, likes) = MemeLikeRepository::new(app.database.clone())
-        .meme_of_week()
-        .unwrap();
+    let (meme, likes) =
+        MemeLikeRepository::new(app.database.clone()).get_top_meme(Utils::Period::Week)?;
 
-    send_top(bot, &meme, likes, Top::Week).await?;
+    send_top(
+        bot,
+        &meme,
+        likes,
+        &String::from("Больше всех на этой неделе!"),
+    )
+    .await?;
 
     Ok(())
 }
@@ -39,11 +28,16 @@ pub async fn meme_of_month(
     bot: &Bot,
     app: &Application,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (meme, likes) = MemeLikeRepository::new(app.database.clone())
-        .meme_of_month()
-        .unwrap();
+    let (meme, likes) =
+        MemeLikeRepository::new(app.database.clone()).get_top_meme(Utils::Period::Month)?;
 
-    send_top(bot, &meme, likes, Top::Month).await?;
+    send_top(
+        bot,
+        &meme,
+        likes,
+        &String::from("Больше всех в этом месяце!"),
+    )
+    .await?;
 
     Ok(())
 }
@@ -52,11 +46,10 @@ pub async fn meme_of_year(
     bot: &Bot,
     app: &Application,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let (meme, likes) = MemeLikeRepository::new(app.database.clone())
-        .meme_of_year()
-        .unwrap();
+    let (meme, likes) =
+        MemeLikeRepository::new(app.database.clone()).get_top_meme(Utils::Period::Year)?;
 
-    send_top(bot, &meme, likes, Top::Year).await?;
+    send_top(bot, &meme, likes, &String::from("Больше всех в этом году!")).await?;
 
     Ok(())
 }
@@ -73,7 +66,7 @@ async fn send_top(
     bot: &Bot,
     meme: &Meme,
     likes: i64,
-    text: Top,
+    text: &String,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let user = get_chat_member(bot, meme).await?;
 
@@ -83,7 +76,7 @@ async fn send_top(
             "{} твой мем набрал {} лайк(ов)!\n{}\nПоздравляю!",
             Utils::get_user_text(&user),
             likes,
-            text.name()
+            *text
         ),
     )
     .reply_to_message_id(meme.msg_id())

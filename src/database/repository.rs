@@ -1,4 +1,3 @@
-use chrono::prelude::*;
 use serde_json::Value as Json;
 use uuid::Uuid;
 
@@ -119,35 +118,18 @@ impl MemeLikeRepository {
         self.count(uuid, MemeLikeOperation::Dislike)
     }
 
-    pub fn meme_of_week(&self) -> Result<(Meme, i64), Error> {
-        let start = first_workday_of_week();
-        let end = last_workday_of_week();
-
-        self.get_top_meme(start.naive_utc(), end.naive_utc())
-    }
-
-    pub fn meme_of_month(&self) -> Result<(Meme, i64), Error> {
-        let start = first_workday_of_month();
-        let end = last_workday_of_month();
-
-        self.get_top_meme(start.naive_utc(), end.naive_utc())
-    }
-
-    pub fn meme_of_year(&self) -> Result<(Meme, i64), Error> {
-        let start = first_workday_of_year();
-        let end = last_workday_of_year();
-
-        self.get_top_meme(start.naive_utc(), end.naive_utc())
-    }
-
-    fn get_top_meme(&self, start: NaiveDateTime, end: NaiveDateTime) -> Result<(Meme, i64), Error> {
+    pub fn get_top_meme(&self, period: Period) -> Result<(Meme, i64), Error> {
         use diesel::sql_types::BigInt;
+        use diesel::sql_types::Bool;
+
+        let (start, end) = period.dates();
 
         MemesSchema::table
             .left_join(MemeLikesSchema::table)
             .group_by((MemesSchema::dsl::uuid, MemesSchema::dsl::posted_at))
-            .filter(MemesSchema::dsl::posted_at.ge(start))
-            .filter(MemesSchema::dsl::posted_at.le(end))
+            .filter(MemesSchema::dsl::posted_at.ge(start.naive_utc()))
+            .filter(MemesSchema::dsl::posted_at.le(end.naive_utc()))
+            .filter(dsl::sql::<Bool>("likes IS NOT NULL"))
             .select((
                 MemesSchema::all_columns,
                 dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes"),
