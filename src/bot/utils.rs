@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Days, TimeZone, Utc};
+use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
 use now::DateTimeNow;
 use teloxide::types::User;
 
@@ -55,9 +55,10 @@ impl Period {
                 59,
                 59,
             )
-            .unwrap();
+            .unwrap()
+            .with_nanosecond(999999);
 
-        (start, end)
+        (start, end.unwrap())
     }
 
     fn month_dates() -> (DateTime<Utc>, DateTime<Utc>) {
@@ -85,9 +86,10 @@ impl Period {
                 59,
                 59,
             )
-            .unwrap();
+            .unwrap()
+            .with_nanosecond(999999);
 
-        (start, end)
+        (start, end.unwrap())
     }
 
     fn year_dates() -> (DateTime<Utc>, DateTime<Utc>) {
@@ -115,9 +117,10 @@ impl Period {
                 59,
                 59,
             )
-            .unwrap();
+            .unwrap()
+            .with_nanosecond(999999);
 
-        (start, end)
+        (start, end.unwrap())
     }
 
     fn get_last_work_day(date: &DateTime<Utc>) -> DateTime<Utc> {

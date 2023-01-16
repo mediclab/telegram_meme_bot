@@ -59,7 +59,7 @@ async fn main() {
     }
 
     if is_arg("start") {
-        println!("MemeBot version = {}", VERSION.unwrap_or("unknown"));
+        println!("MemeBot version = {}", &app.version);
 
         let handler = dptree::entry()
             .branch(
