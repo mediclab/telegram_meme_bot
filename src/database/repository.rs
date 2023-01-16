@@ -129,11 +129,11 @@ impl MemeLikeRepository {
             .group_by((MemesSchema::dsl::uuid, MemesSchema::dsl::posted_at))
             .filter(MemesSchema::dsl::posted_at.ge(start.naive_utc()))
             .filter(MemesSchema::dsl::posted_at.le(end.naive_utc()))
-            .filter(dsl::sql::<Bool>("likes IS NOT NULL"))
             .select((
                 MemesSchema::all_columns,
                 dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes"),
             ))
+            .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") <> 0"))
             .order_by(dsl::sql::<BigInt>("likes DESC"))
             .then_order_by(MemesSchema::dsl::posted_at.desc())
             .first::<(Meme, i64)>(&mut *self.get_connection())
