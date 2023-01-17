@@ -42,7 +42,7 @@ impl Period {
             .unwrap();
 
         let end_week = Utc::now()
-            .beginning_of_week()
+            .end_of_week()
             .checked_sub_days(Days::new(2))
             .unwrap();
 

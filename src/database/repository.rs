@@ -119,8 +119,7 @@ impl MemeLikeRepository {
     }
 
     pub fn get_top_meme(&self, period: Period) -> Result<(Meme, i64), Error> {
-        use diesel::sql_types::BigInt;
-        use diesel::sql_types::Bool;
+        use diesel::sql_types::{BigInt, Bool};
 
         let (start, end) = period.dates();
 
