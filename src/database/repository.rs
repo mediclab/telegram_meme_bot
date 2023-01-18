@@ -1,23 +1,21 @@
+use chrono::Utc;
 use serde_json::Value as Json;
 use uuid::Uuid;
 
 use crate::database::{
-    manager::DBManager, models::*, schema::meme_likes as MemeLikesSchema,
-    schema::memes as MemesSchema, PgPooledConnection,
+    manager::DBManager, models::*, schema::chats as ChatsSchema,
+    schema::meme_likes as MemeLikesSchema, schema::memes as MemesSchema,
+    schema::users as UsersSchema, PgPooledConnection,
 };
 
 use crate::bot::utils::*;
 use diesel::{dsl, prelude::*, result::Error};
 
-pub struct MemeRepository {
+pub struct Repository {
     db_manager: DBManager,
 }
 
-trait Repository {
-    fn get_connection(&self) -> PgPooledConnection;
-}
-
-impl Repository for MemeRepository {
+impl Repository {
     fn get_connection(&self) -> PgPooledConnection {
         self.db_manager
             .get_pool()
@@ -25,9 +23,27 @@ impl Repository for MemeRepository {
     }
 }
 
+pub struct MemeRepository {
+    repo: Repository,
+}
+
+pub struct MemeLikeRepository {
+    repo: Repository,
+}
+
+pub struct UserRepository {
+    repo: Repository,
+}
+
+pub struct ChatRepository {
+    repo: Repository,
+}
+
 impl MemeRepository {
     pub fn new(db_manager: DBManager) -> Self {
-        Self { db_manager }
+        Self {
+            repo: Repository { db_manager },
+        }
     }
 
     pub fn add(&self, user_id: i64, chat_id: i64, photos: Json) -> Result<Meme, Error> {
@@ -37,53 +53,43 @@ impl MemeRepository {
                 MemesSchema::dsl::chat_id.eq(chat_id),
                 MemesSchema::dsl::photos.eq(Some(photos)),
             ))
-            .get_result::<Meme>(&mut *self.get_connection())
+            .get_result::<Meme>(&mut *self.repo.get_connection())
     }
 
     pub fn add_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
         diesel::update(MemesSchema::table)
             .filter(MemesSchema::dsl::uuid.eq(uuid))
             .set(MemesSchema::dsl::msg_id.eq(msg_id))
-            .execute(&mut *self.get_connection())
+            .execute(&mut *self.repo.get_connection())
             .is_ok()
     }
 
     pub fn get(&self, uuid: &Uuid) -> Result<Meme, Error> {
         MemesSchema::table
             .find(uuid)
-            .first(&mut *self.get_connection())
+            .first(&mut *self.repo.get_connection())
     }
 
     pub fn get_by_msg_id(&self, msg_id: i64, chat_id: i64) -> Result<Meme, Error> {
         MemesSchema::table
             .filter(MemesSchema::dsl::msg_id.eq(msg_id))
             .filter(MemesSchema::dsl::chat_id.eq(chat_id))
-            .first(&mut *self.get_connection())
+            .first(&mut *self.repo.get_connection())
     }
 
     pub fn delete(&self, uuid: &Uuid) -> bool {
         diesel::delete(MemesSchema::table)
             .filter(MemesSchema::dsl::uuid.eq(uuid))
-            .execute(&mut *self.get_connection())
+            .execute(&mut *self.repo.get_connection())
             .is_ok()
-    }
-}
-
-pub struct MemeLikeRepository {
-    db_manager: DBManager,
-}
-
-impl Repository for MemeLikeRepository {
-    fn get_connection(&self) -> PgPooledConnection {
-        self.db_manager
-            .get_pool()
-            .expect("Cannot get connection from pool")
     }
 }
 
 impl MemeLikeRepository {
     pub fn new(db_manager: DBManager) -> Self {
-        Self { db_manager }
+        Self {
+            repo: Repository { db_manager },
+        }
     }
 
     pub fn like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
@@ -135,7 +141,7 @@ impl MemeLikeRepository {
             .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") <> 0"))
             .order_by(dsl::sql::<BigInt>("likes DESC"))
             .then_order_by(MemesSchema::dsl::posted_at.desc())
-            .first::<(Meme, i64)>(&mut *self.get_connection())
+            .first::<(Meme, i64)>(&mut *self.repo.get_connection())
     }
 
     fn insert(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
@@ -151,7 +157,7 @@ impl MemeLikeRepository {
             ))
             .do_update()
             .set(MemeLikesSchema::dsl::num.eq(operation.id()))
-            .execute(&mut *self.get_connection())
+            .execute(&mut *self.repo.get_connection())
             .is_ok()
     }
 
@@ -160,7 +166,7 @@ impl MemeLikeRepository {
             .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
             .filter(MemeLikesSchema::dsl::num.eq(operation.id()))
-            .execute(&mut *self.get_connection())
+            .execute(&mut *self.repo.get_connection())
             .is_ok()
     }
 
@@ -171,7 +177,7 @@ impl MemeLikeRepository {
                 .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
                 .filter(MemeLikesSchema::dsl::num.eq(operation.id())),
         ))
-        .get_result(&mut *self.get_connection())
+        .get_result(&mut *self.repo.get_connection())
         .unwrap_or(false)
     }
 
@@ -180,7 +186,45 @@ impl MemeLikeRepository {
             .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::num.eq(operation.id()))
             .count()
-            .get_result(&mut *self.get_connection())
+            .get_result(&mut *self.repo.get_connection())
             .unwrap_or(0)
+    }
+}
+
+impl UserRepository {
+    pub fn new(db_manager: DBManager) -> Self {
+        Self {
+            repo: Repository { db_manager },
+        }
+    }
+
+    pub fn add(&self, user: &User) -> Result<User, Error> {
+        diesel::insert_into(UsersSchema::table)
+            .values(user)
+            .on_conflict(UsersSchema::dsl::user_id)
+            .do_nothing()
+            .get_result::<User>(&mut *self.repo.get_connection())
+    }
+
+    pub fn delete(&self, user_id: i64) -> bool {
+        diesel::update(UsersSchema::table)
+            .filter(UsersSchema::dsl::user_id.eq(user_id))
+            .set(UsersSchema::dsl::deleted_at.eq(Utc::now().naive_utc()))
+            .execute(&mut *self.repo.get_connection())
+            .is_ok()
+    }
+}
+
+impl ChatRepository {
+    pub fn new(db_manager: DBManager) -> Self {
+        Self {
+            repo: Repository { db_manager },
+        }
+    }
+
+    pub fn add(&self, chat: &Chat) -> Result<Chat, Error> {
+        diesel::insert_into(ChatsSchema::table)
+            .values(chat)
+            .get_result::<Chat>(&mut *self.repo.get_connection())
     }
 }
