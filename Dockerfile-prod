@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y cmake build-essential \
-    && cargo install diesel_cli --no-default-features --features "postgres sqlite" --target-dir /usr/local/bin \
+    && cargo install diesel_cli --no-default-features --features "postgres" --target-dir /usr/local/bin \
     && apt-get clean
 
 COPY . /app
@@ -25,5 +25,8 @@ WORKDIR /app
 
 COPY ./migrations /app/migrations
 COPY ./diesel.toml /app/diesel.toml
+COPY ./initd.sh /app/initd.sh
 
-CMD ["tg_meme_bot", "--start"]
+RUN chmod +x /app/initd.sh
+
+CMD ["/app/initd.sh"]

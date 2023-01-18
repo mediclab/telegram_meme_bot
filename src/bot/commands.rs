@@ -3,7 +3,8 @@ use std::sync::Arc;
 use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
-use crate::database::repository::MemeRepository;
+use crate::database::models::Chat;
+use crate::database::repository::{ChatRepository, MemeRepository};
 use crate::Application;
 
 use super::markups::*;
@@ -13,7 +14,7 @@ use super::markups::*;
     rename_rule = "lowercase",
     description = "Команды которые поддерживает бот:"
 )]
-pub enum Command {
+pub enum PublicCommand {
     #[command(description = "Показывает перечень команд")]
     Help,
     #[command(
@@ -27,37 +28,44 @@ pub enum Command {
     UnMeme,
 }
 
+#[derive(BotCommands, Clone)]
+#[command(
+    rename_rule = "lowercase",
+    description = "Команды которые поддерживает бот:"
+)]
+pub enum PrivateCommand {
+    #[command(description = "Показывает перечень команд")]
+    Help,
+    #[command(description = "Зарегистрировать чат")]
+    Register(String),
+}
+
 pub struct CommandsHandler {
     pub app: Arc<Application>,
     pub bot: Bot,
     pub msg: Message,
-    pub cmd: Command,
 }
 
 impl CommandsHandler {
-    pub async fn handle(
+    pub async fn public_handle(
         bot: Bot,
         msg: Message,
-        cmd: Command,
+        cmd: PublicCommand,
         app: Arc<Application>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let handler = CommandsHandler { app, bot, msg, cmd };
+        let handler = CommandsHandler { app, bot, msg };
 
-        if handler.msg.chat.id.0 > 0 {
-            return handler.private().await;
-        }
-
-        match handler.cmd {
-            Command::Help => {
-                handler.help_command().await?;
+        match cmd {
+            PublicCommand::Help => {
+                handler.help_command_public().await?;
             }
-            Command::F => {
+            PublicCommand::F => {
                 handler.f_command().await?;
             }
-            Command::Accordeon => {
+            PublicCommand::Accordeon => {
                 handler.accordeon_command().await?;
             }
-            Command::UnMeme => {
+            PublicCommand::UnMeme => {
                 handler.unmeme_command().await?;
             }
         };
@@ -65,28 +73,89 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn private(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.bot
-            .send_message(
-                self.msg.chat.id,
-                String::from("Временно недоступно в приватных чатах"),
-            )
-            .await?;
+    pub async fn private_handle(
+        bot: Bot,
+        msg: Message,
+        cmd: PrivateCommand,
+        app: Arc<Application>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let handler = CommandsHandler { app, bot, msg };
+
+        match cmd {
+            PrivateCommand::Help => {
+                handler.help_command_private().await?;
+            }
+            PrivateCommand::Register(chat_id) => {
+                handler
+                    .register_command(chat_id.trim().parse::<i64>().unwrap())
+                    .await?;
+            }
+        };
 
         Ok(())
     }
 
-    pub async fn help_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn help_command_public(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.bot
             .send_message(
                 self.msg.chat.id,
                 format!(
                     "{}\n\nВерсия бота: {}\nIssue\\Предложения: <a href=\"https://github.com/mediclab/telegram_meme_bot/issues\">сюды</a>",
-                    Command::descriptions(),
+                    PublicCommand::descriptions(),
                     self.app.version
                 ),
             )
             .parse_mode(ParseMode::Html)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn help_command_private(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.bot
+            .send_message(
+                self.msg.chat.id,
+                format!(
+                    "{}\n\nВерсия бота: {}",
+                    PrivateCommand::descriptions(),
+                    self.app.version
+                ),
+            )
+            .parse_mode(ParseMode::Html)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn register_command(&self, chat_id: i64) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let repository = ChatRepository::new(self.app.database.clone());
+
+        let chat = match self.bot.get_chat(ChatId(chat_id)).await {
+            Ok(c) => c,
+            Err(_) => {
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        "Не удалось зарегистрировать чат.\nНеверный id чата. Либо чат приватный.",
+                    )
+                    .await?;
+
+                return Ok(());
+            }
+        };
+
+        let _ = repository.add(&Chat {
+            chat_id: chat.id.0,
+            chatname: chat
+                .username()
+                .expect("Chat name does not exists")
+                .to_string(),
+            description: chat.description().map(|d| d.to_string()),
+            created_at: None,
+        });
+
+        self.bot
+            .send_message(self.msg.chat.id, "Чат успешно зарегистрирован!")
             .await?;
 
         Ok(())
@@ -121,7 +190,7 @@ impl CommandsHandler {
                             AccordeonMarkup::new(meme.uuid).get_markup()
                         ).await?;
                 } else {
-                    Err("Reply message is not from bot")?
+                    return Ok(());
                 }
             }
             None => {
@@ -163,7 +232,7 @@ impl CommandsHandler {
                         .reply_markup(DeleteMarkup::new(meme.uuid).get_markup())
                         .await?;
                 } else {
-                    Err("Reply message is not from bot")?
+                    return Ok(());
                 }
             }
             None => {

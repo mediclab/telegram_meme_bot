@@ -1,5 +1,7 @@
+use crate::database::schema::chats as ChatsSchema;
 use crate::database::schema::meme_likes as MemeLikesSchema;
 use crate::database::schema::memes as MemesSchema;
+use crate::database::schema::users as UsersSchema;
 
 use chrono::prelude::*;
 use diesel::prelude::*;
@@ -58,4 +60,26 @@ impl MemeLikeOperation {
             MemeLikeOperation::Dislike => -1,
         }
     }
+}
+
+#[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
+#[diesel(table_name = UsersSchema)]
+#[diesel(primary_key(user_id))]
+pub struct User {
+    pub user_id: i64,
+    pub username: Option<String>,
+    pub firstname: String,
+    pub lastname: Option<String>,
+    pub deleted_at: Option<NaiveDateTime>,
+    pub created_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
+#[diesel(table_name = ChatsSchema)]
+#[diesel(primary_key(chat_id))]
+pub struct Chat {
+    pub chat_id: i64,
+    pub chatname: String,
+    pub description: Option<String>,
+    pub created_at: Option<NaiveDateTime>,
 }

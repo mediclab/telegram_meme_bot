@@ -8,7 +8,8 @@ use teloxide::{
 
 use crate::bot::markups::*;
 use crate::bot::utils as Utils;
-use crate::database::repository::MemeRepository;
+use crate::database::models::User;
+use crate::database::repository::{MemeRepository, UserRepository};
 use crate::Application;
 
 pub struct MessagesHandler {
@@ -25,10 +26,6 @@ impl MessagesHandler {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let handler = MessagesHandler { app, bot, msg };
 
-        if handler.msg.chat.id.0 > 0 {
-            return handler.private().await;
-        }
-
         match &handler.msg.kind {
             MessageKind::Common(_) => {
                 handler.common().await?;
@@ -41,17 +38,6 @@ impl MessagesHandler {
             }
             _ => {}
         };
-
-        Ok(())
-    }
-
-    pub async fn private(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.bot
-            .send_message(
-                self.msg.chat.id,
-                String::from("Временно недоступно в приватных чатах"),
-            )
-            .await?;
 
         Ok(())
     }
@@ -123,6 +109,7 @@ impl MessagesHandler {
     }
 
     pub async fn newbie(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let repository = UserRepository::new(self.app.database.clone());
         let newbie_msg = vec![
             "Добро пожаловать, {user_name}! С новеньких по мему, местное правило (честно, всё именно так 😊)",
             "Привет, {user_name}! Есть местное правило - с новеньких по мему. У тебя 1 час. Потом тебя удалят (честно, всё именно так 😊)",
@@ -142,21 +129,36 @@ impl MessagesHandler {
             .new_chat_members()
             .expect("New chat members not found!");
 
-        let a: Vec<String> = users.iter().map(Utils::get_user_text).collect();
+        let users_names: Vec<String> = users.iter().map(Utils::get_user_text).collect();
 
         let message = *newbie_msg.choose(&mut rand::thread_rng()).unwrap();
 
         self.bot
             .send_message(
                 self.msg.chat.id,
-                <&str>::clone(&message).replace("{user_name}", a.join(", ").as_str()),
+                <&str>::clone(&message).replace("{user_name}", users_names.join(", ").as_str()),
             )
             .await?;
+
+        users.iter().for_each(|user| {
+            let u = user.clone();
+
+            let _ = repository.add(&User {
+                user_id: u.id.0 as i64,
+                username: u.username,
+                firstname: u.first_name,
+                lastname: u.last_name,
+                deleted_at: None,
+                created_at: None,
+            });
+        });
 
         Ok(())
     }
 
     pub async fn left(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let repository = UserRepository::new(self.app.database.clone());
+
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
             .await?;
@@ -172,6 +174,8 @@ impl MessagesHandler {
                 ),
             )
             .await?;
+
+        repository.delete(user.id.0 as i64);
 
         Ok(())
     }
