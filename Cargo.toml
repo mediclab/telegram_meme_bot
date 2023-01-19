@@ -1,13 +1,13 @@
 [package]
 name = "tg_meme_bot"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # Telegram Bot Library
-teloxide = { version = "0.11", features = ["macros"] }
+teloxide = { version = "0.12", features = ["macros"] }
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 # Logs Libraries
 log = "0.4"

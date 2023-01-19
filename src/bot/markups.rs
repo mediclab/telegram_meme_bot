@@ -63,11 +63,11 @@ impl MemeMarkup {
     }
 }
 
-pub struct AccordeonMarkup {
+pub struct AccordionMarkup {
     uuid: Uuid,
 }
 
-impl AccordeonMarkup {
+impl AccordionMarkup {
     pub fn new(uuid: Uuid) -> Self {
         Self { uuid }
     }

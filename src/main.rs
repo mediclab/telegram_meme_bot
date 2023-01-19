@@ -3,6 +3,7 @@ extern crate dotenv;
 mod bot;
 mod database;
 
+use crate::bot::utils::Period;
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
@@ -39,7 +40,7 @@ async fn main() {
     });
 
     if is_arg("meme_of_week") {
-        bot::top::meme_of_week(&bot, &app)
+        bot::top::send_top_stats(&bot, &app, Period::Week)
             .await
             .expect("Can't send meme of week");
 
@@ -47,7 +48,7 @@ async fn main() {
     }
 
     if is_arg("meme_of_month") {
-        bot::top::meme_of_month(&bot, &app)
+        bot::top::send_top_stats(&bot, &app, Period::Month)
             .await
             .expect("Can't send meme of month");
 
@@ -55,7 +56,7 @@ async fn main() {
     }
 
     if is_arg("meme_of_year") {
-        bot::top::meme_of_year(&bot, &app)
+        bot::top::send_top_stats(&bot, &app, Period::Year)
             .await
             .expect("Can't send meme of year");
 

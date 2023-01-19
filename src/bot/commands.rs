@@ -23,7 +23,7 @@ pub enum PublicCommand {
     )]
     F,
     #[command(description = "Это даже не баян, это аккордеон на**й")]
-    Accordeon,
+    Accordion,
     #[command(description = "Удалить свой мем")]
     UnMeme,
 }
@@ -62,8 +62,8 @@ impl CommandsHandler {
             PublicCommand::F => {
                 handler.f_command().await?;
             }
-            PublicCommand::Accordeon => {
-                handler.accordeon_command().await?;
+            PublicCommand::Accordion => {
+                handler.accordion_command().await?;
             }
             PublicCommand::UnMeme => {
                 handler.unmeme_command().await?;
@@ -169,13 +169,25 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn accordeon_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn accordion_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let repository = MemeRepository::new(self.app.database.clone());
 
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {
                     let meme = repository.get_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                    let user_res = self
+                        .bot
+                        .get_chat_member(self.msg.chat.id, meme.user_id())
+                        .await;
+                    let mut user_text = String::new();
+
+                    if user_res.is_ok() {
+                        user_text = format!(
+                            "{}!\n",
+                            crate::bot::utils::get_user_text(&user_res.unwrap().user)
+                        );
+                    }
 
                     self.bot
                         .delete_message(self.msg.chat.id, self.msg.id)
@@ -183,11 +195,11 @@ impl CommandsHandler {
                     self.bot
                         .send_message(
                             self.msg.chat.id,
-                            String::from("Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
+                            format!("{}Пользователи жалуются на великое баянище!\nЧто будем с ним делать?", user_text)
                         )
                         .reply_to_message_id(repl.id)
                         .reply_markup(
-                            AccordeonMarkup::new(meme.uuid).get_markup()
+                            AccordionMarkup::new(meme.uuid).get_markup()
                         ).await?;
                 } else {
                     return Ok(());

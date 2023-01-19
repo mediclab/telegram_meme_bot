@@ -9,7 +9,12 @@ use crate::database::{
 };
 
 use crate::bot::utils::*;
-use diesel::{dsl, prelude::*, result::Error};
+use diesel::{
+    dsl,
+    prelude::*,
+    result::Error,
+    sql_types::{BigInt, Bool},
+};
 
 pub struct Repository {
     db_manager: DBManager,
@@ -124,9 +129,7 @@ impl MemeLikeRepository {
         self.count(uuid, MemeLikeOperation::Dislike)
     }
 
-    pub fn get_top_meme(&self, period: Period) -> Result<(Meme, i64), Error> {
-        use diesel::sql_types::{BigInt, Bool};
-
+    pub fn get_top_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
         let (start, end) = period.dates();
 
         MemesSchema::table
@@ -142,6 +145,62 @@ impl MemeLikeRepository {
             .order_by(dsl::sql::<BigInt>("likes DESC"))
             .then_order_by(MemesSchema::dsl::posted_at.desc())
             .first::<(Meme, i64)>(&mut *self.repo.get_connection())
+    }
+
+    pub fn get_top_selflikes(&self, period: &Period) -> Result<(i64, i64), Error> {
+        let (start, end) = period.dates();
+
+        MemeLikesSchema::table
+            .inner_join(MemesSchema::table)
+            .group_by(MemeLikesSchema::dsl::user_id)
+            .filter(MemeLikesSchema::dsl::created_at.ge(start.naive_utc()))
+            .filter(MemeLikesSchema::dsl::created_at.le(end.naive_utc()))
+            .filter(MemeLikesSchema::dsl::user_id.eq(MemesSchema::dsl::user_id))
+            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Like.id()))
+            .select((
+                MemeLikesSchema::dsl::user_id,
+                dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes"),
+            ))
+            .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") > 0"))
+            .order_by(dsl::sql::<BigInt>("likes DESC"))
+            .first::<(i64, i64)>(&mut *self.repo.get_connection())
+    }
+
+    pub fn get_top_likers(
+        &self,
+        period: &Period,
+        operation: MemeLikeOperation,
+    ) -> Result<(i64, i64), Error> {
+        let (start, end) = period.dates();
+
+        MemeLikesSchema::table
+            .group_by(MemeLikesSchema::dsl::user_id)
+            .filter(MemeLikesSchema::dsl::created_at.ge(start.naive_utc()))
+            .filter(MemeLikesSchema::dsl::created_at.le(end.naive_utc()))
+            .filter(MemeLikesSchema::dsl::num.eq(operation.id()))
+            .select((
+                MemeLikesSchema::dsl::user_id,
+                dsl::sql::<BigInt>("COUNT(\"meme_likes\".\"num\") as cnt"),
+            ))
+            .having(dsl::sql::<Bool>("COUNT(\"meme_likes\".\"num\") > 0"))
+            .order_by(dsl::sql::<BigInt>("cnt DESC"))
+            .first::<(i64, i64)>(&mut *self.repo.get_connection())
+    }
+
+    pub fn get_top_memesender(&self, period: &Period) -> Result<(i64, i64), Error> {
+        let (start, end) = period.dates();
+
+        MemesSchema::table
+            .group_by(MemesSchema::dsl::user_id)
+            .filter(MemesSchema::dsl::posted_at.ge(start.naive_utc()))
+            .filter(MemesSchema::dsl::posted_at.le(end.naive_utc()))
+            .select((
+                MemesSchema::dsl::user_id,
+                dsl::sql::<BigInt>("COUNT(\"memes\".\"uuid\") as cnt"),
+            ))
+            .having(dsl::sql::<Bool>("COUNT(\"memes\".\"uuid\") > 0"))
+            .order_by(dsl::sql::<BigInt>("cnt DESC"))
+            .first::<(i64, i64)>(&mut *self.repo.get_connection())
     }
 
     fn insert(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
