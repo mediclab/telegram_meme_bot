@@ -1336,9 +1336,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.36.6"
+version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4feacf7db682c6c329c4ede12649cd36ecab0f3be5b7d74e6a20304725db4549"
+checksum = "d4fdebc4b395b7fbb9ab11e462e20ed9051e7b16e42d24042c776eca0ac81b03"
 dependencies = [
  "bitflags",
  "errno",
@@ -1386,9 +1386,9 @@ checksum = "ddccb15bcce173023b3fedd9436f882a0739b8dfb45e4f6b6002bee5929f61b2"
 
 [[package]]
 name = "security-framework"
-version = "2.7.0"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bc1bb97804af6631813c55739f771071e0f2ed33ee20b68c86ec505d906356c"
+checksum = "645926f31b250a2dca3c232496c2d898d91036e45ca0e97e0e2390c54e11be36"
 dependencies = [
  "bitflags",
  "core-foundation",
@@ -1399,9 +1399,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.6.1"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0160a13a177a45bfb43ce71c01580998474f556ad854dcbca936dd2841a5c556"
+checksum = "31c9bb296072e961fcbd8853511dd39c2d8be2deb1e17c6860b1d30732b323b4"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -1545,9 +1545,9 @@ checksum = "20f34339676cdcab560c9a82300c4c2581f68b9369aedf0fae86f2ff9565ff3e"
 
 [[package]]
 name = "teloxide"
-version = "0.11.3"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c3b28292b33a57a8d71ce000c23fdaffeb0b4aec35fa9351d4be7ec6376a3f"
+checksum = "c0b08789da4f24d049aea06e17c1c7b92c1b92222115e357014a46e842fb8c84"
 dependencies = [
  "aquamarine",
  "bytes",
@@ -1571,9 +1571,9 @@ dependencies = [
 
 [[package]]
 name = "teloxide-core"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9243a720aa9bddda324a7f90b4ab42887425524bf4d5d24a56b50bccb984b7c4"
+checksum = "25d05d54e4c83825f143da24f0fe35c1171b634f3ba1f6c9e2fae6d98e2446b6"
 dependencies = [
  "bitflags",
  "bytes",
@@ -1637,7 +1637,7 @@ dependencies = [
 
 [[package]]
 name = "tg_meme_bot"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "clap",
@@ -1838,9 +1838,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-bidi"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
+checksum = "0046be40136ef78dc325e0edefccf84ccddacd0afcc1ca54103fa3c61bbdab1d"
 
 [[package]]
 name = "unicode-ident"

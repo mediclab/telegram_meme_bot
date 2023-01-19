@@ -169,8 +169,10 @@ impl MessagesHandler {
             .send_message(
                 self.msg.chat.id,
                 format!(
-                    "Штош, {} ливнул с нашего лампового чатика. Психика не выдержала, видимо.\nБудем скучать (нет)",
-                    Utils::get_user_text(user)
+                    "{} Штош, {} ливнул с нашего лампового чатика. Психика не выдержала, видимо.\nБудем скучать (нет) {}",
+                    emojis::get_by_shortcode("broken_heart").unwrap().as_str(),
+                    Utils::get_user_text(user),
+                    emojis::get_by_shortcode("cursing_face").unwrap().as_str(),
                 ),
             )
             .await?;
