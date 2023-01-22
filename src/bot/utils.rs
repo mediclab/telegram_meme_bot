@@ -9,6 +9,22 @@ pub fn get_user_text(user: &User) -> String {
     }
 }
 
+pub fn pluralize(num: i64, texts: (&str, &str, &str)) -> String {
+    let last = num % 100;
+
+    let plural = if (11..=19).contains(&last) {
+        texts.2.to_string()
+    } else {
+        match last % 10 {
+            1 => texts.0.to_string(),
+            2..=4 => texts.1.to_string(),
+            _ => texts.2.to_string(),
+        }
+    };
+
+    format!("{} {}", num, plural)
+}
+
 pub enum Period {
     Week,
     Month,
