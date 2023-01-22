@@ -23,16 +23,17 @@ pub async fn send_top_stats(
     let mut text: String;
     let repository = MemeLikeRepository::new(app.database.clone());
     let _res = repository.get_top_meme(&period);
-    let trans = get_translations(&period);
+    let period_text = get_translations(&period);
 
     if _res.is_ok() {
         let (meme, likes) = _res.as_ref().unwrap();
         let user = get_chat_member(bot, meme.chat_id().0, meme.user_id().0).await?;
 
         text = format!(
-            "{} твой мем набрал {likes} лайк(ов)!\nБольше всех {}!\nПоздравляю! {}",
+            "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! {}",
             Utils::get_user_text(&user),
-            trans.1,
+            Utils::pluralize(*likes, ("лайк", "лайка", "лайков")),
+            period_text.1,
             emojis::get_by_shortcode("tada").unwrap().as_str()
         );
     } else {
@@ -56,11 +57,12 @@ pub async fn send_top_stats(
         let user = get_chat_member(bot, meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{} Мемомёт {}:\n{} отправил {count} мемов {}!\n\n",
+            "{} Мемомёт {}:\n{} отправил {} {}!\n\n",
             emojis::get_by_shortcode("clown_face").unwrap().as_str(),
-            trans.0,
+            period_text.0,
             Utils::get_user_text(&user),
-            trans.1
+            Utils::pluralize(count, ("мем", "мема", "мемов")),
+            period_text.1
         );
     }
 
@@ -71,11 +73,12 @@ pub async fn send_top_stats(
         let user = get_chat_member(bot, meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{text}{} Хитрец {}:\n{} лайкнул свои же мемы {count} раз {}!\n\n",
+            "{text}{} Хитрец {}:\n{} лайкнул свои же мемы {} {}!\n\n",
             emojis::get_by_shortcode("smiling_imp").unwrap().as_str(),
-            trans.0,
+            period_text.0,
             Utils::get_user_text(&user),
-            trans.1
+            Utils::pluralize(count, ("раз", "раза", "раз")),
+            period_text.1
         );
     }
 
@@ -86,11 +89,12 @@ pub async fn send_top_stats(
         let user = get_chat_member(bot, meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{text}{} Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {count} лайков\n\n",
+            "{text}{} Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {}\n\n",
             emojis::get_by_shortcode("heart").unwrap().as_str(),
-            trans.0,
+            period_text.0,
             Utils::get_user_text(&user),
-            trans.1
+            period_text.1,
+            Utils::pluralize(count, ("лайк", "лайка", "лайков")),
         );
     }
 
@@ -101,11 +105,12 @@ pub async fn send_top_stats(
         let user = get_chat_member(bot, meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{text}{} Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {count} дизлайков",
+            "{text}{} Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {}",
             emojis::get_by_shortcode("rage").unwrap().as_str(),
-            trans.0,
+            period_text.0,
             Utils::get_user_text(&user),
-            trans.1
+            period_text.1,
+            Utils::pluralize(count, ("дизлайк", "дизлайка", "дизлайков")),
         );
     }
 
