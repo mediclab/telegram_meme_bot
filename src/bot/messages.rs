@@ -1,4 +1,3 @@
-use rand::seq::SliceRandom;
 use std::error::Error;
 use std::sync::Arc;
 use teloxide::{
@@ -53,12 +52,16 @@ impl MessagesHandler {
             return Ok(());
         }
 
+        if self.msg.from().is_none() {
+            return Err(Box::try_from("User is anonymous!").unwrap());
+        }
+
         let user = self.msg.from().unwrap();
-        let repository = MemeRepository::new(self.app.database.clone());
+        let meme_repository = MemeRepository::new(self.app.database.clone());
         let user_text = Utils::get_user_text(user);
 
         if let Some(photos) = self.msg.photo() {
-            let meme = repository
+            let meme = meme_repository
                 .add(
                     self.msg.from().unwrap().id.0 as i64,
                     self.msg.chat.id.0,
@@ -78,11 +81,11 @@ impl MessagesHandler {
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
-            repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+            meme_repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
         }
 
         if let Some(video) = self.msg.video() {
-            let meme = repository
+            let meme = meme_repository
                 .add(
                     self.msg.from().unwrap().id.0 as i64,
                     self.msg.chat.id.0,
@@ -102,7 +105,7 @@ impl MessagesHandler {
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
-            repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+            meme_repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
         }
 
         Ok(())
@@ -110,15 +113,7 @@ impl MessagesHandler {
 
     pub async fn newbie(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let repository = UserRepository::new(self.app.database.clone());
-        let newbie_msg = vec![
-            "Добро пожаловать, {user_name}! С новеньких по мему, местное правило (честно, всё именно так 😊)",
-            "Привет, {user_name}! Есть местное правило - с новеньких по мему. У тебя 1 час. Потом тебя удалят (честно, всё именно так 😊)",
-            "Добро пожаловать, {user_name}! Ваше заявление об увольнениии принято отделом кадров, для отмены пришлите мем (честно, всё именно так 😊)",
-            "Добро пожаловать, {user_name}! Подтвердите свою личность, прислав мем в этот чат.\nВсе неидентифицированные пользователи удаляются быстро - в течение 60 лет. (честно, всё именно так 😊)",
-            "Добро пожаловать, {user_name}! К сожалению, ваше заявление на отпуск потеряно, следующий отпуск можно взять через 4 года 7 месяцев, для востановления заявления пришлите мем (честно, всё именно так 😊)",
-            "900: {user_name}, Вас приветствует Служба безопасности Сбербанка. Для отмены операции 'В фонд озеленения Луны', Сумма: 34765.00 рублей, пришлите мем (честно, всё именно так 😊)",
-            "Добро пожаловать, {user_name}! К сожалению, ваше заявление на отсрочку от мобилизации не будет принято, пока вы не пришлете мем в этот чат.",
-        ];
+        let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
 
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
@@ -129,28 +124,21 @@ impl MessagesHandler {
             .new_chat_members()
             .expect("New chat members not found!");
 
-        let users_names: Vec<String> = users.iter().map(Utils::get_user_text).collect();
-
-        let message = *newbie_msg.choose(&mut rand::thread_rng()).unwrap();
+        let users_names = users
+            .iter()
+            .map(Utils::get_user_text)
+            .collect::<Vec<String>>()
+            .join(", ");
 
         self.bot
             .send_message(
                 self.msg.chat.id,
-                <&str>::clone(&message).replace("{user_name}", users_names.join(", ").as_str()),
+                messages.random().replace("{user_name}", &users_names),
             )
             .await?;
 
         users.iter().for_each(|user| {
-            let u = user.clone();
-
-            let _ = repository.add(&User {
-                user_id: u.id.0 as i64,
-                username: u.username,
-                firstname: u.first_name,
-                lastname: u.last_name,
-                deleted_at: None,
-                created_at: None,
-            });
+            let _ = repository.add(&User::new_from_tg(user));
         });
 
         Ok(())
@@ -158,6 +146,7 @@ impl MessagesHandler {
 
     pub async fn left(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let repository = UserRepository::new(self.app.database.clone());
+        let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
 
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
@@ -168,12 +157,9 @@ impl MessagesHandler {
         self.bot
             .send_message(
                 self.msg.chat.id,
-                format!(
-                    "{} Штош, {} ливнул с нашего лампового чатика. Психика не выдержала, видимо.\nБудем скучать (нет) {}",
-                    emojis::get_by_shortcode("broken_heart").unwrap().as_str(),
-                    Utils::get_user_text(user),
-                    emojis::get_by_shortcode("cursing_face").unwrap().as_str(),
-                ),
+                messages
+                    .random()
+                    .replace("{user_name}", &Utils::get_user_text(user)),
             )
             .await?;
 
