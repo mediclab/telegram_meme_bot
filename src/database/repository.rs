@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use serde_json::Value as Json;
 use uuid::Uuid;
 
@@ -261,7 +261,8 @@ impl UserRepository {
         diesel::insert_into(UsersSchema::table)
             .values(user)
             .on_conflict(UsersSchema::dsl::user_id)
-            .do_nothing()
+            .do_update()
+            .set(UsersSchema::dsl::deleted_at.eq(None as Option<NaiveDateTime>))
             .get_result::<User>(&mut *self.repo.get_connection())
     }
 

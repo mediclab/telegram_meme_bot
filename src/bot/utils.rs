@@ -1,5 +1,6 @@
 use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
 use now::DateTimeNow;
+use rand::seq::SliceRandom;
 use teloxide::types::User;
 
 pub fn get_user_text(user: &User) -> String {
@@ -23,6 +24,27 @@ pub fn pluralize(num: i64, texts: (&str, &str, &str)) -> String {
     };
 
     format!("{} {}", num, plural)
+}
+
+pub struct Messages {
+    messages: Vec<String>,
+}
+
+impl Messages {
+    pub fn load(text: &str) -> Self {
+        let vec: Vec<&str> = text
+            .split(';')
+            .filter(|text| !text.trim().is_empty())
+            .collect();
+
+        Self {
+            messages: vec.iter().map(|s| s.trim().to_string()).collect(),
+        }
+    }
+
+    pub fn random(&self) -> &String {
+        self.messages.choose(&mut rand::thread_rng()).unwrap()
+    }
 }
 
 pub enum Period {

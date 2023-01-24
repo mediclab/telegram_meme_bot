@@ -6,7 +6,7 @@ use crate::database::schema::users as UsersSchema;
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;
-use teloxide::types::{ChatId, MessageId, UserId};
+use teloxide::types::{ChatId, MessageId, User as TgUser, UserId};
 use uuid::Uuid;
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
@@ -72,6 +72,21 @@ pub struct User {
     pub lastname: Option<String>,
     pub deleted_at: Option<NaiveDateTime>,
     pub created_at: Option<NaiveDateTime>,
+}
+
+impl User {
+    pub fn new_from_tg(user: &TgUser) -> Self {
+        let u = user.clone();
+
+        Self {
+            user_id: u.id.0 as i64,
+            username: u.username,
+            firstname: u.first_name,
+            lastname: u.last_name,
+            deleted_at: None,
+            created_at: None,
+        }
+    }
 }
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]

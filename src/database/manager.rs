@@ -20,6 +20,10 @@ impl DBManager {
 
     //this functions returns a connection from the Pool
     pub fn get_pool(&self) -> Result<PgPooledConnection, PoolError> {
-        Ok(self.pool.get().expect("Can't get connection from pool"))
+        Ok(self.pool.get().expect("Can't get pool"))
+    }
+
+    pub fn get_connection(&self) -> PgPooledConnection {
+        self.get_pool().expect("Can't get connection from pool")
     }
 }
