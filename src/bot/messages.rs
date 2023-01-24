@@ -8,7 +8,6 @@ use teloxide::{
 use crate::bot::markups::*;
 use crate::bot::utils as Utils;
 use crate::database::models::User;
-use crate::database::repository::{MemeRepository, UserRepository};
 use crate::Application;
 
 pub struct MessagesHandler {
@@ -57,12 +56,13 @@ impl MessagesHandler {
         }
 
         let user = self.msg.from().unwrap();
-        let meme_repository = MemeRepository::new(self.app.database.clone());
         let user_text = Utils::get_user_text(user);
 
         if let Some(photos) = self.msg.photo() {
-            let meme = meme_repository
-                .add(
+            let meme = self
+                .app
+                .database
+                .add_meme(
                     self.msg.from().unwrap().id.0 as i64,
                     self.msg.chat.id.0,
                     serde_json::json!(self.msg.photo()),
@@ -81,12 +81,16 @@ impl MessagesHandler {
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
-            meme_repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+            self.app
+                .database
+                .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
         }
 
         if let Some(video) = self.msg.video() {
-            let meme = meme_repository
-                .add(
+            let meme = self
+                .app
+                .database
+                .add_meme(
                     self.msg.from().unwrap().id.0 as i64,
                     self.msg.chat.id.0,
                     serde_json::json!(self.msg.video()),
@@ -105,14 +109,15 @@ impl MessagesHandler {
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
-            meme_repository.add_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+            self.app
+                .database
+                .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
         }
 
         Ok(())
     }
 
     pub async fn newbie(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let repository = UserRepository::new(self.app.database.clone());
         let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
 
         self.bot
@@ -138,14 +143,13 @@ impl MessagesHandler {
             .await?;
 
         users.iter().for_each(|user| {
-            let _ = repository.add(&User::new_from_tg(user));
+            let _ = self.app.database.add_user(&User::new_from_tg(user));
         });
 
         Ok(())
     }
 
     pub async fn left(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let repository = UserRepository::new(self.app.database.clone());
         let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
 
         self.bot
@@ -163,7 +167,7 @@ impl MessagesHandler {
             )
             .await?;
 
-        repository.delete(user.id.0 as i64);
+        self.app.database.delete_user(user.id.0 as i64);
 
         Ok(())
     }

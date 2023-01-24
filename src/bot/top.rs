@@ -1,7 +1,6 @@
 use crate::bot::utils as Utils;
 use crate::bot::utils::Period;
 use crate::database::models::MemeLikeOperation;
-use crate::database::repository::MemeLikeRepository;
 use crate::Application;
 use std::error::Error;
 use teloxide::prelude::*;
@@ -21,8 +20,7 @@ pub async fn send_top_stats(
     period: Period,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut text: String;
-    let repository = MemeLikeRepository::new(app.database.clone());
-    let _res = repository.get_top_meme(&period);
+    let _res = app.database.get_top_meme(&period);
     let period_text = get_translations(&period);
 
     if _res.is_ok() {
@@ -50,7 +48,7 @@ pub async fn send_top_stats(
         .expect("Can't send 'top of' message");
 
     text = String::new();
-    let _res = repository.get_top_memesender(&period);
+    let _res = app.database.get_top_memesender(&period);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -66,7 +64,7 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_selflikes(&period);
+    let _res = app.database.get_top_selflikes(&period);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -82,7 +80,9 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_likers(&period, MemeLikeOperation::Like);
+    let _res = app
+        .database
+        .get_top_likers(&period, MemeLikeOperation::Like);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -98,7 +98,9 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_likers(&period, MemeLikeOperation::Dislike);
+    let _res = app
+        .database
+        .get_top_likers(&period, MemeLikeOperation::Dislike);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
