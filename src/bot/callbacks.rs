@@ -105,6 +105,11 @@ impl CallbackHandler {
 
         self.bot.delete_message(msg.chat.id, msg.id).await?;
 
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Штош, на Вашей совести")
+            .await?;
+
         Ok(true)
     }
 
@@ -118,6 +123,11 @@ impl CallbackHandler {
             .await?;
 
         self.app.database.delete_meme(&meme.uuid);
+
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Удалено")
+            .await?;
 
         Ok(())
     }
@@ -134,6 +144,11 @@ impl CallbackHandler {
         self.bot
             .edit_message_reply_markup(msg.chat.id, msg.id)
             .reply_markup(meme_markup.get_markup())
+            .await?;
+
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Спасибо за Ваше неравнодушие")
             .await?;
 
         Ok(())

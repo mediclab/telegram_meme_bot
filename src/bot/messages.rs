@@ -1,13 +1,14 @@
 use std::error::Error;
 use std::sync::Arc;
+
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, ReplyMarkup},
 };
 
 use crate::bot::markups::*;
-use crate::bot::utils as Utils;
-use crate::database::models::User;
+use crate::database::models::{AddMeme, AddUser, Meme};
+use crate::utils as Utils;
 use crate::Application;
 
 pub struct MessagesHandler {
@@ -59,43 +60,113 @@ impl MessagesHandler {
         let user_text = Utils::get_user_text(user);
 
         if let Some(photos) = self.msg.photo() {
-            let meme = self
-                .app
-                .database
-                .add_meme(
-                    self.msg.from().unwrap().id.0 as i64,
-                    self.msg.chat.id.0,
-                    serde_json::json!(self.msg.photo()),
-                )
-                .unwrap();
+            let (hash, hash_min) = match Utils::generate_hashes(&self.bot, &photos[0].file.id).await
+            {
+                Ok(res) => res,
+                Err(_) => (None, None),
+            };
+            let mut s_meme: (i64, Option<Meme>) = (0, None);
+
+            if hash.is_some() && hash_min.is_some() {
+                let hash_min = hash_min.clone().unwrap();
+                let similar_memes = self
+                    .app
+                    .database
+                    .get_memes_by_short_hash(&hash_min)
+                    .unwrap_or_default();
+
+                similar_memes.into_iter().for_each(|meme| {
+                    let hash = hash.clone().unwrap();
+                    let meme_hash = meme.long_hash.clone().unwrap_or_default();
+
+                    if meme_hash.len() == hash.len() {
+                        let percent = Utils::compare_hashes(
+                            &Utils::from_hex_to_binary(&hash),
+                            &Utils::from_hex_to_binary(&meme_hash),
+                        );
+
+                        if percent > 90f64 && percent < 100f64 {
+                            if percent as i64 > s_meme.0 {
+                                s_meme = (percent as i64, Some(meme));
+                            }
+                        } else if percent == 100f64 {
+                            s_meme = (100, Some(meme));
+                        }
+                    }
+                });
+            }
 
             self.bot
                 .delete_message(self.msg.chat.id, self.msg.id)
                 .await?;
 
+            if s_meme.0 == 100 {
+                let meme = s_meme.1.unwrap();
+                let messages =
+                    Utils::Messages::load(include_str!("../../messages/meme_already_exists.in"));
+
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        messages.random().replace("{user_name}", &user_text),
+                    )
+                    .reply_to_message_id(meme.msg_id())
+                    .await?;
+
+                return Ok(());
+            }
+
+            let meme = self
+                .app
+                .database
+                .add_meme(&AddMeme::new_from_tg(&self.msg, &hash, &hash_min))
+                .expect("Can't add photo meme");
+
             let markup = MemeMarkup::new(0, 0, meme.uuid);
             let bot_msg = self
                 .bot
                 .send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
-                .caption(format!("Оцените мем {}", user_text))
+                .caption(format!("Оцените мем {user_text}"))
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
             self.app
                 .database
                 .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+
+            if s_meme.0 > 0 {
+                let meme = s_meme.1.unwrap();
+                let messages =
+                    Utils::Messages::load(include_str!("../../messages/similar_meme.in"));
+
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        messages
+                            .random()
+                            .replace("{user_name}", &user_text)
+                            .replace(
+                                "{percent}",
+                                &Utils::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                            ),
+                    )
+                    .reply_to_message_id(meme.msg_id())
+                    .await?;
+
+                return Ok(());
+            }
         }
 
         if let Some(video) = self.msg.video() {
             let meme = self
                 .app
                 .database
-                .add_meme(
-                    self.msg.from().unwrap().id.0 as i64,
-                    self.msg.chat.id.0,
-                    serde_json::json!(self.msg.video()),
-                )
-                .unwrap();
+                .add_meme(&AddMeme::new_from_tg(
+                    &self.msg,
+                    &None as &Option<String>,
+                    &None as &Option<String>,
+                ))
+                .expect("Can't add video meme");
 
             self.bot
                 .delete_message(self.msg.chat.id, self.msg.id)
@@ -105,7 +176,7 @@ impl MessagesHandler {
             let bot_msg = self
                 .bot
                 .send_video(self.msg.chat.id, InputFile::file_id(&video.file.id))
-                .caption(format!("Оцените видео-мем {}", user_text))
+                .caption(format!("Оцените видео-мем {user_text}"))
                 .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
                 .await?;
 
@@ -143,7 +214,7 @@ impl MessagesHandler {
             .await?;
 
         users.iter().for_each(|user| {
-            let _ = self.app.database.add_user(&User::new_from_tg(user));
+            let _ = self.app.database.add_user(&AddUser::new_from_tg(user));
         });
 
         Ok(())

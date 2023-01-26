@@ -2,8 +2,8 @@ extern crate dotenv;
 
 mod bot;
 mod database;
+mod utils;
 
-use crate::bot::utils::Period;
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
@@ -15,6 +15,7 @@ use dotenv::dotenv;
 use redis::Client as RedisClient;
 use std::{env, process::exit, sync::Arc};
 use teloxide::{prelude::*, types::Me};
+use utils::Period;
 
 pub struct Application {
     pub database: DBManager,
@@ -32,9 +33,8 @@ async fn main() {
 
     let bot = Bot::from_env();
     let app = Arc::new(Application {
-        database: DBManager::connect(env::var("DATABASE_URL").expect("DATABASE_URL must be set")),
-        redis: RedisClient::open(env::var("REDIS_URL").expect("REDIS_URL must be set"))
-            .expect("Redis is not connected"),
+        database: DBManager::connect(get_env("DATABASE_URL")),
+        redis: RedisClient::open(get_env("REDIS_URL")).expect("Redis is not connected"),
         bot: bot.get_me().await.expect("Can't get bot information"),
         version: VERSION.unwrap_or("unknown").to_string(),
     });
@@ -63,11 +63,21 @@ async fn main() {
         exit(0);
     }
 
-    // if is_arg("users_update") {
-    //     add_users(&app, &bot);
-    //
-    //     exit(0);
-    // }
+    if is_arg("users_update") {
+        // utils::update_users(&bot, &app, 0)
+        //     .await
+        //     .expect("Can't update users");
+
+        exit(0);
+    }
+
+    if is_arg("hash_update") {
+        utils::update_hashes(&bot, &app)
+            .await
+            .expect("Can't update hashes");
+
+        exit(0);
+    }
 
     if is_arg("start") {
         println!("MemeBot version = {}", &app.version);
@@ -144,15 +154,24 @@ fn cli() -> ArgMatches {
                 .default_missing_value("true")
                 .help("Send meme of year to chats"),
         )
-        // .arg(
-        //     Arg::new("users_update")
-        //         .long("users_update")
-        //         .value_parser(["false", "true"])
-        //         .default_value("false")
-        //         .num_args(0)
-        //         .default_missing_value("true")
-        //         .help("Update users of chat"),
-        // )
+        .arg(
+            Arg::new("users_update")
+                .long("users_update")
+                .value_parser(["false", "true"])
+                .default_value("false")
+                .num_args(0)
+                .default_missing_value("true")
+                .help("Update users of chats"),
+        )
+        .arg(
+            Arg::new("hash_update")
+                .long("hash_update")
+                .value_parser(["false", "true"])
+                .default_value("false")
+                .num_args(0)
+                .default_missing_value("true")
+                .help("Update hashes of memes"),
+        )
         .author("Medic84")
         .about("Meme telegram bot for chats")
         .get_matches()
@@ -162,41 +181,6 @@ fn is_arg(arg: &str) -> bool {
     cli().get_one::<String>(arg).unwrap().eq("true")
 }
 
-// fn add_users(app: &Application, bot: &Bot) {
-//     use crate::database::models::User;
-//     use crate::database::repository::UserRepository;
-//     use diesel::sql_types::BigInt;
-//     use diesel::RunQueryDsl;
-//
-//     let users = diesel::dsl::sql::<BigInt>("(SELECT DISTINCT user_id FROM memes UNION SELECT DISTINCT user_id FROM meme_likes) EXCEPT SELECT user_id FROM users")
-//         .load::<i64>(&mut app.database.get_connection()).expect("Can't get all users");
-//
-//     let rep = UserRepository::new(app.database.clone());
-//
-//     println!("Count updating users = {}", users.len());
-//
-//     users.iter().for_each(|user| {
-//         println!("Sending request for user id = {}", user);
-//         let res = futures::executor::block_on(
-//             bot.get_chat_member(ChatId(****), UserId(*user as u64))
-//                 .send(),
-//         );
-//         let member = match res {
-//             Ok(m) => m,
-//             Err(e) => {
-//                 println!("User not found: {:?}", e);
-//
-//                 return;
-//             }
-//         };
-//
-//         println!(
-//             "Add user {} to database ({})",
-//             user,
-//             member.user.full_name()
-//         );
-//
-//         let _ = rep.add(&User::new_from_tg(&member.user));
-//         std::thread::sleep(std::time::Duration::from_secs(1))
-//     });
-// }
+fn get_env(env: &str) -> String {
+    env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
+}

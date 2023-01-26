@@ -183,7 +183,7 @@ impl CommandsHandler {
                     if user_res.is_ok() {
                         user_text = format!(
                             "{}!\n",
-                            crate::bot::utils::get_user_text(&user_res.unwrap().user)
+                            crate::utils::get_user_text(&user_res.unwrap().user)
                         );
                     }
 
@@ -193,7 +193,7 @@ impl CommandsHandler {
                     self.bot
                         .send_message(
                             self.msg.chat.id,
-                            format!("{}Пользователи жалуются на великое баянище!\nЧто будем с ним делать?", user_text)
+                            format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
                         )
                         .reply_to_message_id(repl.id)
                         .reply_markup(

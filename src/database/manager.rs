@@ -5,7 +5,6 @@ use crate::database::PgPool;
 use crate::database::PgPooledConnection;
 
 use chrono::{NaiveDateTime, Utc};
-use serde_json::Value as Json;
 use uuid::Uuid;
 
 use crate::database::{
@@ -13,7 +12,7 @@ use crate::database::{
     schema::memes as MemesSchema, schema::users as UsersSchema,
 };
 
-use crate::bot::utils::*;
+use crate::utils::Period;
 use diesel::{
     dsl,
     prelude::*,
@@ -44,14 +43,21 @@ impl DBManager {
         self.get_pool().expect("Can't get connection from pool")
     }
 
-    pub fn add_meme(&self, user_id: i64, chat_id: i64, photos: Json) -> Result<Meme, Error> {
+    pub fn add_meme(&self, meme: &AddMeme) -> Result<Meme, Error> {
         diesel::insert_into(MemesSchema::table)
-            .values((
-                MemesSchema::dsl::user_id.eq(user_id),
-                MemesSchema::dsl::chat_id.eq(chat_id),
-                MemesSchema::dsl::photos.eq(Some(photos)),
+            .values(meme)
+            .get_result(&mut *self.get_connection())
+    }
+
+    pub fn add_meme_hashes(&self, uuid: &Uuid, long_hash: &str, short_hash: &str) -> bool {
+        diesel::update(MemesSchema::table)
+            .filter(MemesSchema::dsl::uuid.eq(uuid))
+            .set((
+                MemesSchema::dsl::long_hash.eq(long_hash),
+                MemesSchema::dsl::short_hash.eq(short_hash),
             ))
-            .get_result::<Meme>(&mut *self.get_connection())
+            .execute(&mut *self.get_connection())
+            .is_ok()
     }
 
     pub fn replace_meme_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
@@ -66,6 +72,12 @@ impl DBManager {
         MemesSchema::table
             .find(uuid)
             .first(&mut *self.get_connection())
+    }
+
+    pub fn get_memes_by_short_hash(&self, short_hash: &str) -> Result<Vec<Meme>, Error> {
+        MemesSchema::table
+            .filter(MemesSchema::dsl::short_hash.eq(short_hash))
+            .load(&mut *self.get_connection())
     }
 
     pub fn get_meme_by_msg_id(&self, msg_id: i64, chat_id: i64) -> Result<Meme, Error> {
@@ -129,7 +141,7 @@ impl DBManager {
             .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") <> 0"))
             .order_by(dsl::sql::<BigInt>("likes DESC"))
             .then_order_by(MemesSchema::dsl::posted_at.desc())
-            .first::<(Meme, i64)>(&mut *self.get_connection())
+            .first(&mut *self.get_connection())
     }
 
     pub fn get_top_selflikes(&self, period: &Period) -> Result<(i64, i64), Error> {
@@ -148,7 +160,7 @@ impl DBManager {
             ))
             .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") > 0"))
             .order_by(dsl::sql::<BigInt>("likes DESC"))
-            .first::<(i64, i64)>(&mut *self.get_connection())
+            .first(&mut *self.get_connection())
     }
 
     pub fn get_top_likers(
@@ -169,7 +181,7 @@ impl DBManager {
             ))
             .having(dsl::sql::<Bool>("COUNT(\"meme_likes\".\"num\") > 0"))
             .order_by(dsl::sql::<BigInt>("cnt DESC"))
-            .first::<(i64, i64)>(&mut *self.get_connection())
+            .first(&mut *self.get_connection())
     }
 
     pub fn get_top_memesender(&self, period: &Period) -> Result<(i64, i64), Error> {
@@ -185,16 +197,16 @@ impl DBManager {
             ))
             .having(dsl::sql::<Bool>("COUNT(\"memes\".\"uuid\") > 0"))
             .order_by(dsl::sql::<BigInt>("cnt DESC"))
-            .first::<(i64, i64)>(&mut *self.get_connection())
+            .first(&mut *self.get_connection())
     }
 
-    pub fn add_user(&self, user: &User) -> Result<User, Error> {
+    pub fn add_user(&self, user: &AddUser) -> Result<User, Error> {
         diesel::insert_into(UsersSchema::table)
             .values(user)
             .on_conflict(UsersSchema::dsl::user_id)
             .do_update()
             .set(UsersSchema::dsl::deleted_at.eq(None as Option<NaiveDateTime>))
-            .get_result::<User>(&mut *self.get_connection())
+            .get_result(&mut *self.get_connection())
     }
 
     pub fn delete_user(&self, user_id: i64) -> bool {
@@ -208,7 +220,21 @@ impl DBManager {
     pub fn add_chat(&self, chat: &Chat) -> Result<Chat, Error> {
         diesel::insert_into(ChatsSchema::table)
             .values(chat)
-            .get_result::<Chat>(&mut *self.get_connection())
+            .get_result(&mut *self.get_connection())
+    }
+
+    pub fn get_memes_without_hashes(&self) -> Result<Vec<Meme>, Error> {
+        MemesSchema::table
+            .filter(dsl::sql::<Bool>("NOT photos ? 'thumb'"))
+            .filter(MemesSchema::dsl::short_hash.is_null())
+            .order_by(dsl::sql::<BigInt>("posted_at DESC"))
+            .limit(50)
+            .load(&mut *self.get_connection())
+    }
+
+    pub fn get_users_ids_not_in_table(&self) -> Result<Vec<i64>, Error> {
+        dsl::sql::<BigInt>("(SELECT DISTINCT user_id FROM memes UNION SELECT DISTINCT user_id FROM meme_likes) EXCEPT SELECT user_id FROM users")
+         .load::<i64>(&mut *self.get_connection())
     }
 
     fn insert_for_like(

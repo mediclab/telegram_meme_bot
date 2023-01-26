@@ -28,6 +28,8 @@ diesel::table! {
         photos -> Nullable<Jsonb>,
         posted_at -> Nullable<Timestamp>,
         updated_at -> Nullable<Timestamp>,
+        long_hash -> Nullable<Varchar>,
+        short_hash -> Nullable<Varchar>,
     }
 }
 
@@ -44,4 +46,9 @@ diesel::table! {
 
 diesel::joinable!(meme_likes -> memes (meme_uuid));
 
-diesel::allow_tables_to_appear_in_same_query!(chats, meme_likes, memes, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    chats,
+    meme_likes,
+    memes,
+    users,
+);
