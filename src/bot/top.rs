@@ -1,28 +1,25 @@
-use crate::bot::utils as Utils;
-use crate::bot::utils::Period;
 use crate::database::models::MemeLikeOperation;
-use crate::database::repository::MemeLikeRepository;
+use crate::utils as Utils;
 use crate::Application;
 use std::error::Error;
 use teloxide::prelude::*;
 use teloxide::types::User;
 
-fn get_translations(period: &Period) -> (&str, &str) {
+fn get_translations(period: &Utils::Period) -> (&str, &str) {
     match *period {
-        Period::Week => ("недели", "на этой неделе"),
-        Period::Month => ("месяца", "в этом месяце"),
-        Period::Year => ("года", "в этом году"),
+        Utils::Period::Week => ("недели", "на этой неделе"),
+        Utils::Period::Month => ("месяца", "в этом месяце"),
+        Utils::Period::Year => ("года", "в этом году"),
     }
 }
 
 pub async fn send_top_stats(
     bot: &Bot,
     app: &Application,
-    period: Period,
+    period: Utils::Period,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut text: String;
-    let repository = MemeLikeRepository::new(app.database.clone());
-    let _res = repository.get_top_meme(&period);
+    let _res = app.database.get_top_meme(&period);
     let period_text = get_translations(&period);
 
     if _res.is_ok() {
@@ -50,7 +47,7 @@ pub async fn send_top_stats(
         .expect("Can't send 'top of' message");
 
     text = String::new();
-    let _res = repository.get_top_memesender(&period);
+    let _res = app.database.get_top_memesender(&period);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -66,7 +63,7 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_selflikes(&period);
+    let _res = app.database.get_top_selflikes(&period);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -82,7 +79,9 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_likers(&period, MemeLikeOperation::Like);
+    let _res = app
+        .database
+        .get_top_likers(&period, MemeLikeOperation::Like);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();
@@ -98,7 +97,9 @@ pub async fn send_top_stats(
         );
     }
 
-    let _res = repository.get_top_likers(&period, MemeLikeOperation::Dislike);
+    let _res = app
+        .database
+        .get_top_likers(&period, MemeLikeOperation::Dislike);
 
     if _res.is_ok() {
         let (user_id, count) = _res.unwrap();

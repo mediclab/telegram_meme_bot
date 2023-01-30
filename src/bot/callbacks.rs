@@ -2,10 +2,9 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::bot::markups::*;
+use crate::database::models::Meme;
 use crate::Application;
 use teloxide::prelude::*;
-
-use crate::database::{models::Meme, repository::*};
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,
@@ -29,7 +28,7 @@ impl CallbackHandler {
                 .unwrap_or_else(|| r#"{}"#.to_string()),
         )?;
 
-        let meme = MemeRepository::new(handler.app.database.clone()).get(&data.uuid)?;
+        let meme = handler.app.database.get_meme(&data.uuid)?;
 
         match data.op {
             CallbackOperations::Like => {
@@ -52,7 +51,7 @@ impl CallbackHandler {
     pub async fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
-        let repository = MemeLikeRepository::new(self.app.database.clone());
+        let repository = &self.app.database;
 
         if repository.like_exists(user_id, &meme.uuid) {
             repository.cancel_like(user_id, &meme.uuid);
@@ -73,7 +72,7 @@ impl CallbackHandler {
     pub async fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
-        let repository = MemeLikeRepository::new(self.app.database.clone());
+        let repository = &self.app.database;
 
         if repository.dislike_exists(user_id, &meme.uuid) {
             repository.cancel_dislike(user_id, &meme.uuid);
@@ -106,6 +105,11 @@ impl CallbackHandler {
 
         self.bot.delete_message(msg.chat.id, msg.id).await?;
 
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Штош, на Вашей совести")
+            .await?;
+
         Ok(true)
     }
 
@@ -118,7 +122,12 @@ impl CallbackHandler {
             .delete_message(meme.chat_id(), meme.msg_id())
             .await?;
 
-        MemeRepository::new(self.app.database.clone()).delete(&meme.uuid);
+        self.app.database.delete_meme(&meme.uuid);
+
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Удалено")
+            .await?;
 
         Ok(())
     }
@@ -135,6 +144,11 @@ impl CallbackHandler {
         self.bot
             .edit_message_reply_markup(msg.chat.id, msg.id)
             .reply_markup(meme_markup.get_markup())
+            .await?;
+
+        self.bot
+            .answer_callback_query(&self.callback.id)
+            .text("Спасибо за Ваше неравнодушие")
             .await?;
 
         Ok(())

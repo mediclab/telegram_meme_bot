@@ -6,10 +6,10 @@ use crate::database::schema::users as UsersSchema;
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;
-use teloxide::types::{ChatId, MessageId, User as TgUser, UserId};
+use teloxide::types::{ChatId, Message, MessageId, User as TgUser, UserId};
 use uuid::Uuid;
 
-#[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
+#[derive(Debug, Selectable, Queryable, Identifiable)]
 #[diesel(primary_key(uuid))]
 #[diesel(table_name = MemesSchema)]
 pub struct Meme {
@@ -20,6 +20,18 @@ pub struct Meme {
     pub photos: Option<Json>,
     pub posted_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
+    pub long_hash: Option<String>,
+    pub short_hash: Option<String>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = MemesSchema)]
+pub struct AddMeme {
+    pub user_id: i64,
+    pub chat_id: i64,
+    pub photos: Option<Json>,
+    pub long_hash: Option<String>,
+    pub short_hash: Option<String>,
 }
 
 impl Meme {
@@ -33,6 +45,26 @@ impl Meme {
 
     pub fn msg_id(&self) -> MessageId {
         MessageId(self.msg_id.unwrap() as i32)
+    }
+}
+
+impl AddMeme {
+    pub fn new_from_tg(msg: &Message, l_hash: &Option<String>, s_hash: &Option<String>) -> Self {
+        let json = if msg.photo().is_some() {
+            Option::from(serde_json::json!(msg.photo()))
+        } else if msg.video().is_some() {
+            Option::from(serde_json::json!(msg.video()))
+        } else {
+            None
+        };
+
+        Self {
+            user_id: msg.from().unwrap().id.0 as i64,
+            chat_id: msg.chat.id.0,
+            photos: json,
+            long_hash: l_hash.clone(),
+            short_hash: s_hash.clone(),
+        }
     }
 }
 
@@ -74,7 +106,16 @@ pub struct User {
     pub created_at: Option<NaiveDateTime>,
 }
 
-impl User {
+#[derive(Debug, Insertable)]
+#[diesel(table_name = UsersSchema)]
+pub struct AddUser {
+    pub user_id: i64,
+    pub username: Option<String>,
+    pub firstname: String,
+    pub lastname: Option<String>,
+}
+
+impl AddUser {
     pub fn new_from_tg(user: &TgUser) -> Self {
         let u = user.clone();
 
@@ -83,8 +124,6 @@ impl User {
             username: u.username,
             firstname: u.first_name,
             lastname: u.last_name,
-            deleted_at: None,
-            created_at: None,
         }
     }
 }

@@ -4,7 +4,6 @@ use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::database::models::Chat;
-use crate::database::repository::{ChatRepository, MemeRepository};
 use crate::Application;
 
 use super::markups::*;
@@ -128,8 +127,6 @@ impl CommandsHandler {
     }
 
     pub async fn register_command(&self, chat_id: i64) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let repository = ChatRepository::new(self.app.database.clone());
-
         let chat = match self.bot.get_chat(ChatId(chat_id)).await {
             Ok(c) => c,
             Err(_) => {
@@ -144,7 +141,7 @@ impl CommandsHandler {
             }
         };
 
-        let _ = repository.add(&Chat {
+        let _ = self.app.database.add_chat(&Chat {
             chat_id: chat.id.0,
             chatname: chat
                 .username()
@@ -170,12 +167,13 @@ impl CommandsHandler {
     }
 
     pub async fn accordion_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let repository = MemeRepository::new(self.app.database.clone());
-
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {
-                    let meme = repository.get_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                    let meme = self
+                        .app
+                        .database
+                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
                     let user_res = self
                         .bot
                         .get_chat_member(self.msg.chat.id, meme.user_id())
@@ -185,7 +183,7 @@ impl CommandsHandler {
                     if user_res.is_ok() {
                         user_text = format!(
                             "{}!\n",
-                            crate::bot::utils::get_user_text(&user_res.unwrap().user)
+                            crate::utils::get_user_text(&user_res.unwrap().user)
                         );
                     }
 
@@ -195,7 +193,7 @@ impl CommandsHandler {
                     self.bot
                         .send_message(
                             self.msg.chat.id,
-                            format!("{}Пользователи жалуются на великое баянище!\nЧто будем с ним делать?", user_text)
+                            format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
                         )
                         .reply_to_message_id(repl.id)
                         .reply_markup(
@@ -223,13 +221,13 @@ impl CommandsHandler {
     }
 
     pub async fn unmeme_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let repository = MemeRepository::new(self.app.database.clone());
-
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {
-                    let meme = repository
-                        .get_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
+                    let meme = self
+                        .app
+                        .database
+                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
                         .unwrap();
 
                     self.bot
