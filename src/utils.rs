@@ -148,10 +148,18 @@ pub async fn update_hashes(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let memes = app.database.get_memes_without_hashes()?;
 
-    println!("Count updating memes hashes = {}", memes.len());
+    info!("Count updating memes hashes = {}", memes.len());
 
     for meme in &memes {
-        let json: Vec<PhotoSize> = serde_json::from_value(meme.photos.clone().unwrap())?;
+        info!("Start updating hashes for = {}", &meme.uuid);
+        let json: Vec<PhotoSize> = match serde_json::from_value(meme.photos.clone().unwrap()) {
+            Ok(res) => res,
+            Err(_) => {
+                error!("Can't deserialize photos of meme = {}", &meme.uuid);
+                continue;
+            }
+        };
+
         let (hash, hash_min) = match generate_hashes(bot, &json[0].file.id).await {
             Ok(res) => res,
             Err(_) => (None, None),
@@ -161,9 +169,9 @@ pub async fn update_hashes(
             app.database
                 .add_meme_hashes(&meme.uuid, &hash.unwrap(), &hash_min.unwrap());
 
-            println!("Updated hashes for = {}", &meme.uuid);
+            info!("Updated hashes for = {}", &meme.uuid);
         } else {
-            println!("Failed to update hashes for = {}", &meme.uuid);
+            error!("Failed to update hashes for = {}", &meme.uuid);
         }
 
         sleep(Duration::from_secs(1));
@@ -179,10 +187,10 @@ pub async fn update_users(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let uids = app.database.get_users_ids_not_in_table()?;
 
-    println!("Count updating users = {}", uids.len());
+    info!("Count updating users = {}", uids.len());
 
     for uid in &uids {
-        println!("Sending request for user id = {uid}");
+        info!("Sending request for user id = {uid}");
         let res = bot
             .get_chat_member(ChatId(chat_id), UserId(*uid as u64))
             .await;
@@ -190,13 +198,13 @@ pub async fn update_users(
         let member = match res {
             Ok(m) => m,
             Err(e) => {
-                println!("User not found: {e}");
+                error!("User not found: {e}");
 
                 continue;
             }
         };
 
-        println!("Add user {uid} to database ({})", member.user.full_name());
+        info!("Add user {uid} to database ({})", member.user.full_name());
 
         let _ = app.database.add_user(&AddUser::new_from_tg(&member.user));
 
