@@ -34,7 +34,7 @@ pub async fn send_top_stats(
             emojis::get_by_shortcode("tada").unwrap().as_str()
         );
     } else {
-        println!("Can't get top mem for this period!");
+        error!("Can't get top mem for this period!");
 
         return Ok(());
     }

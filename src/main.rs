@@ -1,4 +1,7 @@
 extern crate dotenv;
+extern crate pretty_env_logger;
+#[macro_use]
+extern crate log;
 
 mod bot;
 mod database;
@@ -29,7 +32,7 @@ async fn main() {
     const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
 
     dotenv().ok();
-    pretty_env_logger::init();
+    pretty_env_logger::init_timed();
 
     let bot = Bot::from_env();
     let app = Arc::new(Application {
@@ -80,7 +83,7 @@ async fn main() {
     }
 
     if is_arg("start") {
-        println!("MemeBot version = {}", &app.version);
+        info!("MemeBot version = {}", &app.version);
 
         let handler = dptree::entry()
             .branch(
@@ -102,7 +105,7 @@ async fn main() {
             )
             .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
 
-        println!("Starting dispatch...");
+        info!("Starting dispatch...");
 
         Dispatcher::builder(bot, handler)
             .dependencies(dptree::deps![Arc::clone(&app)])
