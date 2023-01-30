@@ -46,9 +46,4 @@ diesel::table! {
 
 diesel::joinable!(meme_likes -> memes (meme_uuid));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    chats,
-    meme_likes,
-    memes,
-    users,
-);
+diesel::allow_tables_to_appear_in_same_query!(chats, meme_likes, memes, users,);

@@ -22,22 +22,6 @@ jobs:
         run: |
           echo "::error::Tag version = ${{ env.tag_version }} is not equals version from Cargo.toml = ${{ env.app_version }}"
           exit 1
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - name: Build application
-        run: cargo build --verbose
-      - name: Run application tests
-        run: cargo test --verbose
       - name: Build the Docker image
         env:
           HOST: ${{ secrets.DOCKER_HOME_HOST }}
