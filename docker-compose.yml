@@ -27,9 +27,7 @@ services:
     build:
       dockerfile: "./Dockerfile"
       context: .
-    environment:
-      CARGO_HOME: /app/.cargo_home
-    command: sh -c "diesel migration run && cargo run -- --start"
+    command: sh -c "diesel migration run && cargo run --profile docker -- --start"
     #command: sh -c "tail -f /dev/null"
     working_dir: /app
     volumes:

@@ -2,20 +2,26 @@ use crate::database::models::AddUser;
 use crate::Application;
 use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
 use now::DateTimeNow;
-use opencv::core::{Mat, Size};
-use opencv::imgcodecs;
-use opencv::imgcodecs::ImreadModes;
-use opencv::imgproc;
-use opencv::imgproc::InterpolationFlags;
-use opencv::prelude::*;
+use opencv::{
+    core::{Mat, Size},
+    imgcodecs,
+    imgcodecs::ImreadModes,
+    imgproc,
+    imgproc::InterpolationFlags,
+    prelude::*,
+};
+
+use teloxide::{
+    net::Download,
+    prelude::*,
+    types::{PhotoSize, User},
+    Bot,
+};
+
 use rand::seq::SliceRandom;
 use std::error::Error;
 use std::thread::sleep;
 use std::time::Duration;
-use teloxide::net::Download;
-use teloxide::prelude::*;
-use teloxide::types::{PhotoSize, User};
-use teloxide::Bot;
 use tokio::fs::File;
 
 pub fn get_user_text(user: &User) -> String {

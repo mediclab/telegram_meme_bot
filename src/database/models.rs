@@ -1,8 +1,6 @@
-use crate::database::schema::chats as ChatsSchema;
-use crate::database::schema::meme_likes as MemeLikesSchema;
-use crate::database::schema::memes as MemesSchema;
-use crate::database::schema::users as UsersSchema;
-
+use crate::database::schema::{
+    chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
+};
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;

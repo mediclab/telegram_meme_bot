@@ -1,24 +1,23 @@
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool, PoolError};
-
-use crate::database::PgPool;
-use crate::database::PgPooledConnection;
-
-use chrono::{NaiveDateTime, Utc};
-use uuid::Uuid;
-
 use crate::database::{
-    models::*, schema::chats as ChatsSchema, schema::meme_likes as MemeLikesSchema,
-    schema::memes as MemesSchema, schema::users as UsersSchema,
+    models::*,
+    schema::{
+        chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema,
+        users as UsersSchema,
+    },
+    PgPool, PgPooledConnection,
 };
-
-use crate::utils::Period;
 use diesel::{
     dsl,
+    pg::PgConnection,
     prelude::*,
+    r2d2::{ConnectionManager, Pool, PoolError},
     result::Error,
     sql_types::{BigInt, Bool},
 };
+
+use crate::utils::Period;
+use chrono::{NaiveDateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct DBManager {
