@@ -5,24 +5,25 @@ extern crate log;
 
 mod bot;
 mod database;
+mod redis;
 mod utils;
 
+use crate::redis::RedisManager;
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
     messages::MessagesHandler,
 };
 use clap::{Arg, ArgMatches, Command};
-use database::manager::DBManager;
+use database::DBManager;
 use dotenv::dotenv;
-use redis::Client as RedisClient;
 use std::{env, process::exit, sync::Arc};
 use teloxide::{prelude::*, types::Me};
 use utils::Period;
 
 pub struct Application {
     pub database: DBManager,
-    pub redis: RedisClient,
+    pub redis: RedisManager,
     pub bot: Me,
     pub version: String,
 }
@@ -36,11 +37,21 @@ async fn main() {
 
     let bot = Bot::from_env();
     let app = Arc::new(Application {
-        database: DBManager::connect(get_env("DATABASE_URL")),
-        redis: RedisClient::open(get_env("REDIS_URL")).expect("Redis is not connected"),
+        database: DBManager::connect(&get_env("DATABASE_URL")),
+        redis: RedisManager::connect(&get_env("REDIS_URL")),
         bot: bot.get_me().await.expect("Can't get bot information"),
         version: VERSION.unwrap_or("unknown").to_string(),
     });
+
+    let chat_id_only: i64 = env::var("ONLY_FOR_CHAT_ID")
+        .unwrap_or("0".to_string())
+        .as_str()
+        .parse::<i64>()
+        .unwrap_or(0);
+
+    if chat_id_only < 0 {
+        app.redis.register_chat(chat_id_only);
+    }
 
     if is_arg("meme_of_week") {
         bot::top::send_top_stats(&bot, &app, Period::Week)
@@ -94,13 +105,13 @@ async fn main() {
             )
             .branch(
                 Update::filter_message()
-                    .filter(|m: Message| m.chat.is_group() || m.chat.is_supergroup())
+                    .filter(move |m: Message| filter_messages(&m, &chat_id_only))
                     .filter_command::<PublicCommand>()
                     .endpoint(CommandsHandler::public_handle),
             )
             .branch(
                 Update::filter_message()
-                    .filter(|m: Message| m.chat.is_group() || m.chat.is_supergroup())
+                    .filter(move |m: Message| filter_messages(&m, &chat_id_only))
                     .endpoint(MessagesHandler::handle),
             )
             .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
@@ -186,4 +197,12 @@ fn is_arg(arg: &str) -> bool {
 
 fn get_env(env: &str) -> String {
     env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
+}
+
+fn filter_messages(m: &Message, chat_id: &i64) -> bool {
+    if *chat_id < 0 {
+        (m.chat.is_group() || m.chat.is_supergroup()) && m.chat.id.0 == *chat_id
+    } else {
+        m.chat.is_group() || m.chat.is_supergroup()
+    }
 }
