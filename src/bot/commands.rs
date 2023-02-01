@@ -3,7 +3,7 @@ use std::sync::Arc;
 use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
-use crate::database::models::Chat;
+use crate::database::models::AddChat;
 use crate::Application;
 
 use super::markups::*;
@@ -25,6 +25,8 @@ pub enum PublicCommand {
     Accordion,
     #[command(description = "Удалить свой мем")]
     UnMeme,
+    #[command(description = "Зарегистрировать чат (только для админов)")]
+    Register,
 }
 
 #[derive(BotCommands, Clone)]
@@ -35,8 +37,6 @@ pub enum PublicCommand {
 pub enum PrivateCommand {
     #[command(description = "Показывает перечень команд")]
     Help,
-    #[command(description = "Зарегистрировать чат")]
-    Register(String),
 }
 
 pub struct CommandsHandler {
@@ -67,6 +67,9 @@ impl CommandsHandler {
             PublicCommand::UnMeme => {
                 handler.unmeme_command().await?;
             }
+            PublicCommand::Register => {
+                handler.register_command().await?;
+            }
         };
 
         Ok(())
@@ -83,11 +86,6 @@ impl CommandsHandler {
         match cmd {
             PrivateCommand::Help => {
                 handler.help_command_private().await?;
-            }
-            PrivateCommand::Register(chat_id) => {
-                handler
-                    .register_command(chat_id.trim().parse::<i64>().unwrap())
-                    .await?;
             }
         };
 
@@ -120,36 +118,32 @@ impl CommandsHandler {
                     self.app.version
                 ),
             )
-            .parse_mode(ParseMode::Html)
             .await?;
 
         Ok(())
     }
 
-    pub async fn register_command(&self, chat_id: i64) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let chat = match self.bot.get_chat(ChatId(chat_id)).await {
-            Ok(c) => c,
-            Err(_) => {
-                self.bot
-                    .send_message(
-                        self.msg.chat.id,
-                        "Не удалось зарегистрировать чат.\nНеверный id чата. Либо чат приватный.",
-                    )
-                    .await?;
+    pub async fn register_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.bot
+            .delete_message(self.msg.chat.id, self.msg.id)
+            .await?;
 
-                return Ok(());
-            }
-        };
+        if self.app.redis.is_chat_registered(self.msg.chat.id.0) {
+            return Ok(());
+        }
 
-        let _ = self.app.database.add_chat(&Chat {
-            chat_id: chat.id.0,
-            chatname: chat
-                .username()
-                .expect("Chat name does not exists")
-                .to_string(),
-            description: chat.description().map(|d| d.to_string()),
-            created_at: None,
-        });
+        let admins = self.bot.get_chat_administrators(self.msg.chat.id).await?;
+        let uids = admins.iter().map(|m| m.user.id.0).collect::<Vec<u64>>();
+
+        if !uids.contains(&self.msg.from().unwrap().id.0) {
+            return Ok(());
+        }
+
+        self.app.redis.register_chat(self.msg.chat.id.0);
+        let _ = self
+            .app
+            .database
+            .add_chat(&AddChat::new_from_tg(&self.msg.chat));
 
         self.bot
             .send_message(self.msg.chat.id, "Чат успешно зарегистрирован!")

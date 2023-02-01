@@ -3,9 +3,11 @@
 diesel::table! {
     chats (chat_id) {
         chat_id -> Int8,
-        chatname -> Varchar,
+        chatname -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
         created_at -> Nullable<Timestamp>,
+        title -> Nullable<Varchar>,
+        deleted_at -> Nullable<Timestamp>,
     }
 }
 

@@ -2,20 +2,26 @@ use crate::database::models::AddUser;
 use crate::Application;
 use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
 use now::DateTimeNow;
-use opencv::core::{Mat, Size};
-use opencv::imgcodecs;
-use opencv::imgcodecs::ImreadModes;
-use opencv::imgproc;
-use opencv::imgproc::InterpolationFlags;
-use opencv::prelude::*;
+use opencv::{
+    core::{Mat, Size},
+    imgcodecs,
+    imgcodecs::ImreadModes,
+    imgproc,
+    imgproc::InterpolationFlags,
+    prelude::*,
+};
+
+use teloxide::{
+    net::Download,
+    prelude::*,
+    types::{PhotoSize, User},
+    Bot,
+};
+
 use rand::seq::SliceRandom;
 use std::error::Error;
 use std::thread::sleep;
 use std::time::Duration;
-use teloxide::net::Download;
-use teloxide::prelude::*;
-use teloxide::types::{PhotoSize, User};
-use teloxide::Bot;
 use tokio::fs::File;
 
 pub fn get_user_text(user: &User) -> String {
@@ -126,6 +132,9 @@ pub async fn generate_hashes(
 
     bot.download_file(&photo.path, &mut file).await?;
 
+    sleep(Duration::from_millis(50)); // Sometimes downloading is very fast
+    debug!("Filesize {path} is = {}", std::fs::metadata(&path)?.len());
+
     let cv_image = ImageHash::new(&path).grayscale();
     let hash = cv_image.clone().resize(32).threshold().hash();
     let hash_min = cv_image.resize(4).threshold().hash();
@@ -133,7 +142,7 @@ pub async fn generate_hashes(
     std::fs::remove_file(&path).unwrap_or_default();
 
     if hash.is_none() || hash_min.is_none() {
-        return Err("Hash images failed")?;
+        return Err("Error in opencv hashing")?;
     }
 
     Ok((

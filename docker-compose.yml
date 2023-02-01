@@ -11,7 +11,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
-      - 5433:5432
+      - "5433:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U meme_bot" ]
       interval: 2s
@@ -21,15 +21,13 @@ services:
   redis:
     image: redis:latest
     ports:
-      - 6379:6379
+      - "6379:6379"
   
   bot:
     build:
       dockerfile: "./Dockerfile"
       context: .
-    environment:
-      CARGO_HOME: /app/.cargo_home
-    command: sh -c "diesel migration run && cargo run -- --start"
+    command: sh -c "diesel migration run && cargo run --profile docker -- --start"
     #command: sh -c "tail -f /dev/null"
     working_dir: /app
     volumes:
