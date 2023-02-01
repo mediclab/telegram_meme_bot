@@ -1,16 +1,14 @@
-use std::error::Error;
-use std::sync::Arc;
-
-use teloxide::types::{PhotoSize, Video};
-use teloxide::{
-    prelude::*,
-    types::{InputFile, MessageKind},
-};
-
 use crate::bot::markups::*;
 use crate::database::models::{AddMeme, AddUser, Meme};
 use crate::utils as Utils;
 use crate::Application;
+
+use anyhow::Result;
+use std::sync::Arc;
+use teloxide::{
+    prelude::*,
+    types::{InputFile, MessageKind, PhotoSize, Video},
+};
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -19,11 +17,7 @@ pub struct MessagesHandler {
 }
 
 impl MessagesHandler {
-    pub async fn handle(
-        bot: Bot,
-        msg: Message,
-        app: Arc<Application>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
         let handler = MessagesHandler { app, bot, msg };
 
         match &handler.msg.kind {
@@ -42,7 +36,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn common(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn common(&self) -> Result<()> {
         // If This is forwarded message - nothing to do.
         if self.msg.forward().is_some() {
             return Ok(());
@@ -54,7 +48,9 @@ impl MessagesHandler {
         }
 
         if self.msg.from().is_none() {
-            return Err("User is anonymous!")?;
+            warn!("Anonimous user detected");
+
+            return Ok(());
         }
 
         if self.msg.photo().is_some() || self.msg.video().is_some() {
@@ -74,7 +70,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn newbie(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn newbie(&self) -> Result<()> {
         let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
 
         self.bot
@@ -106,7 +102,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn left(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn left(&self) -> Result<()> {
         let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
 
         self.bot
@@ -129,7 +125,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    async fn photo_handle(&self, photos: &[PhotoSize]) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn photo_handle(&self, photos: &[PhotoSize]) -> Result<()> {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 
@@ -232,7 +228,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    async fn video_handle(&self, video: &Video) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn video_handle(&self, video: &Video) -> Result<()> {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 

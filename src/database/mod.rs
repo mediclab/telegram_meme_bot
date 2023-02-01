@@ -1,4 +1,5 @@
 pub mod models;
+#[rustfmt::skip]
 mod schema;
 
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;

@@ -1,7 +1,6 @@
 use crate::database::models::AddUser;
 use crate::Application;
-use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
-use now::DateTimeNow;
+
 use opencv::{
     core::{Mat, Size},
     imgcodecs,
@@ -18,10 +17,11 @@ use teloxide::{
     Bot,
 };
 
+use anyhow::{anyhow, Result};
+use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
+use now::DateTimeNow;
 use rand::seq::SliceRandom;
-use std::error::Error;
-use std::thread::sleep;
-use std::time::Duration;
+use std::{thread::sleep, time::Duration};
 use tokio::fs::File;
 
 pub fn get_user_text(user: &User) -> String {
@@ -125,7 +125,7 @@ impl ImageHash {
 pub async fn generate_hashes(
     bot: &Bot,
     file_id: &String,
-) -> Result<(Option<String>, Option<String>), Box<dyn Error + Send + Sync>> {
+) -> Result<(Option<String>, Option<String>)> {
     let photo = bot.get_file(file_id).await?;
     let path = format!("/tmp/{}", uuid::Uuid::new_v4());
     let mut file = File::create(&path).await?;
@@ -142,7 +142,7 @@ pub async fn generate_hashes(
     std::fs::remove_file(&path).unwrap_or_default();
 
     if hash.is_none() || hash_min.is_none() {
-        return Err("Error in opencv hashing")?;
+        return Err(anyhow!("Error in opencv hashing"));
     }
 
     Ok((
@@ -151,10 +151,7 @@ pub async fn generate_hashes(
     ))
 }
 
-pub async fn update_hashes(
-    bot: &Bot,
-    app: &Application,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn update_hashes(bot: &Bot, app: &Application) -> Result<()> {
     let memes = app.database.get_memes_without_hashes()?;
 
     info!("Count updating memes hashes = {}", memes.len());
@@ -189,11 +186,7 @@ pub async fn update_hashes(
     Ok(())
 }
 
-pub async fn update_users(
-    bot: &Bot,
-    app: &Application,
-    chat_id: i64,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn update_users(bot: &Bot, app: &Application, chat_id: i64) -> Result<()> {
     let uids = app.database.get_users_ids_not_in_table()?;
 
     info!("Count updating users = {}", uids.len());
