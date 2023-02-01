@@ -1,23 +1,12 @@
 use crate::database::models::MemeLikeOperation;
 use crate::utils as Utils;
 use crate::Application;
-use std::error::Error;
+
+use anyhow::Result;
 use teloxide::prelude::*;
 use teloxide::types::User;
 
-fn get_translations(period: &Utils::Period) -> (&str, &str) {
-    match *period {
-        Utils::Period::Week => ("недели", "на этой неделе"),
-        Utils::Period::Month => ("месяца", "в этом месяце"),
-        Utils::Period::Year => ("года", "в этом году"),
-    }
-}
-
-pub async fn send_top_stats(
-    bot: &Bot,
-    app: &Application,
-    period: Utils::Period,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn send_top_stats(bot: &Bot, app: &Application, period: Utils::Period) -> Result<()> {
     let mut text: String;
     let _res = app.database.get_top_meme(&period);
     let period_text = get_translations(&period);
@@ -127,14 +116,18 @@ pub async fn send_top_stats(
     Ok(())
 }
 
-async fn get_chat_member(
-    bot: &Bot,
-    chat_id: i64,
-    user_id: u64,
-) -> Result<User, Box<dyn Error + Send + Sync>> {
-    Ok(bot
-        .get_chat_member(ChatId(chat_id), UserId(user_id))
-        .await
-        .expect("Can't get chat member")
-        .user)
+fn get_translations(period: &Utils::Period) -> (&str, &str) {
+    match *period {
+        Utils::Period::Week => ("недели", "на этой неделе"),
+        Utils::Period::Month => ("месяца", "в этом месяце"),
+        Utils::Period::Year => ("года", "в этом году"),
+    }
+}
+
+async fn get_chat_member(bot: &Bot, chat_id: i64, user_id: u64) -> Result<User> {
+    let member = bot.get_chat_member(ChatId(chat_id), UserId(user_id)).await;
+
+    let user = member.expect("Can't get chat member").user;
+
+    Ok(user)
 }

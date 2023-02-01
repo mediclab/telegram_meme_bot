@@ -1,12 +1,10 @@
-use std::error::Error;
-use std::sync::Arc;
-use teloxide::types::ParseMode;
-use teloxide::{prelude::*, utils::command::BotCommands};
-
+use super::markups::*;
 use crate::database::models::AddChat;
 use crate::Application;
 
-use super::markups::*;
+use anyhow::Result;
+use std::sync::Arc;
+use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -51,7 +49,7 @@ impl CommandsHandler {
         msg: Message,
         cmd: PublicCommand,
         app: Arc<Application>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
         match cmd {
@@ -80,7 +78,7 @@ impl CommandsHandler {
         msg: Message,
         cmd: PrivateCommand,
         app: Arc<Application>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
         match cmd {
@@ -92,14 +90,15 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn help_command_public(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn help_command_public(&self) -> Result<()> {
         self.bot
             .send_message(
                 self.msg.chat.id,
                 format!(
-                    "{}\n\nВерсия бота: {}\nIssue\\Предложения: <a href=\"https://github.com/mediclab/telegram_meme_bot/issues\">сюды</a>",
+                    "{}\n\nВерсия бота: {}\n{}",
                     PublicCommand::descriptions(),
-                    self.app.version
+                    self.app.version,
+                    include_str!("../../messages/help_text_addition.in")
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -108,7 +107,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn help_command_private(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn help_command_private(&self) -> Result<()> {
         self.bot
             .send_message(
                 self.msg.chat.id,
@@ -123,7 +122,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn register_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn register_command(&self) -> Result<()> {
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
             .await?;
@@ -152,7 +151,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn f_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn f_command(&self) -> Result<()> {
         self.bot
             .send_message(self.msg.chat.id, String::from("F"))
             .await?;
@@ -160,7 +159,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn accordion_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn accordion_command(&self) -> Result<()> {
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {
@@ -214,7 +213,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn unmeme_command(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn unmeme_command(&self) -> Result<()> {
         match self.msg.reply_to_message() {
             Some(repl) => {
                 if repl.from().unwrap().id == self.app.bot.id {

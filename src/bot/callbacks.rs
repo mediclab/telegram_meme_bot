@@ -1,9 +1,8 @@
-use std::error::Error;
-use std::sync::Arc;
-
 use crate::bot::markups::*;
 use crate::database::models::Meme;
 use crate::Application;
+use anyhow::Result;
+use std::sync::Arc;
 use teloxide::prelude::*;
 
 pub struct CallbackHandler {
@@ -13,11 +12,7 @@ pub struct CallbackHandler {
 }
 
 impl CallbackHandler {
-    pub async fn handle(
-        bot: Bot,
-        callback: CallbackQuery,
-        app: Arc<Application>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<()> {
         let handler = CallbackHandler { app, bot, callback };
 
         let data: MemeCallback = serde_json::from_str(
@@ -48,7 +43,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn like(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn like(&self, meme: &Meme) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
         let repository = &self.app.database;
@@ -69,7 +64,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn dislike(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn dislike(&self, meme: &Meme) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
         let repository = &self.app.database;
@@ -90,7 +85,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn none(&self, meme: &Meme) -> Result<bool, Box<dyn Error + Send + Sync>> {
+    pub async fn none(&self, meme: &Meme) -> Result<bool> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if meme.user_id != self.callback.from.id.0 as i64 {
@@ -113,7 +108,7 @@ impl CallbackHandler {
         Ok(true)
     }
 
-    pub async fn delete(&self, meme: &Meme) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn delete(&self, meme: &Meme) -> Result<()> {
         if !self.none(meme).await? {
             return Ok(());
         }
@@ -132,12 +127,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    async fn update_message(
-        &self,
-        meme: &Meme,
-        msg: &Message,
-        counts: (i64, i64),
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<()> {
         let (likes, dislikes) = counts;
         let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
 
