@@ -4,7 +4,7 @@ use std::sync::Arc;
 use teloxide::types::{PhotoSize, Video};
 use teloxide::{
     prelude::*,
-    types::{InputFile, MessageKind, ReplyMarkup},
+    types::{InputFile, MessageKind},
 };
 
 use crate::bot::markups::*;
@@ -203,7 +203,7 @@ impl MessagesHandler {
             .bot
             .send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
             .caption(format!("Оцените мем {user_text}"))
-            .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
+            .reply_markup(markup.get_markup())
             .await?;
 
         self.app
@@ -255,7 +255,7 @@ impl MessagesHandler {
             .bot
             .send_video(self.msg.chat.id, InputFile::file_id(&video.file.id))
             .caption(format!("Оцените видео-мем {user_text}"))
-            .reply_markup(ReplyMarkup::InlineKeyboard(markup.get_markup()))
+            .reply_markup(markup.get_markup())
             .await?;
 
         self.app

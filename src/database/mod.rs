@@ -59,6 +59,7 @@ impl DBManager {
             .set((
                 MemesSchema::dsl::long_hash.eq(long_hash),
                 MemesSchema::dsl::short_hash.eq(short_hash),
+                MemesSchema::dsl::updated_at.eq(Utc::now().naive_utc()),
             ))
             .execute(&mut *self.get_connection())
             .is_ok()
@@ -67,7 +68,10 @@ impl DBManager {
     pub fn replace_meme_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
         diesel::update(MemesSchema::table)
             .filter(MemesSchema::dsl::uuid.eq(uuid))
-            .set(MemesSchema::dsl::msg_id.eq(msg_id))
+            .set((
+                MemesSchema::dsl::msg_id.eq(msg_id),
+                MemesSchema::dsl::updated_at.eq(Utc::now().naive_utc()),
+            ))
             .execute(&mut *self.get_connection())
             .is_ok()
     }
@@ -221,7 +225,7 @@ impl DBManager {
             .is_ok()
     }
 
-    pub fn add_chat(&self, chat: &Chat) -> Result<Chat, Error> {
+    pub fn add_chat(&self, chat: &AddChat) -> Result<Chat, Error> {
         diesel::insert_into(ChatsSchema::table)
             .values(chat)
             .get_result(&mut *self.get_connection())
@@ -240,6 +244,8 @@ impl DBManager {
         dsl::sql::<BigInt>("(SELECT DISTINCT user_id FROM memes UNION SELECT DISTINCT user_id FROM meme_likes) EXCEPT SELECT user_id FROM users")
             .load::<i64>(&mut *self.get_connection())
     }
+
+    pub fn get_active_chat_ids(&self) {}
 
     fn insert_for_like(
         &self,

@@ -78,9 +78,11 @@ async fn main() {
     }
 
     if is_arg("users_update") {
-        // utils::update_users(&bot, &app, 0)
-        //     .await
-        //     .expect("Can't update users");
+        if chat_id_only < 0 {
+            utils::update_users(&bot, &app, chat_id_only)
+                .await
+                .expect("Can't update users");
+        }
 
         exit(0);
     }

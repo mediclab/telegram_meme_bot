@@ -4,7 +4,7 @@ use crate::database::schema::{
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;
-use teloxide::types::{ChatId, Message, MessageId, User as TgUser, UserId};
+use teloxide::types::{Chat as TgChat, ChatId, Message, MessageId, User as TgUser, UserId};
 use uuid::Uuid;
 
 #[derive(Debug, Selectable, Queryable, Identifiable)]
@@ -126,12 +126,34 @@ impl AddUser {
     }
 }
 
-#[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
+#[derive(Debug, Selectable, Queryable, Identifiable)]
 #[diesel(table_name = ChatsSchema)]
 #[diesel(primary_key(chat_id))]
 pub struct Chat {
     pub chat_id: i64,
-    pub chatname: String,
+    pub chatname: Option<String>,
     pub description: Option<String>,
     pub created_at: Option<NaiveDateTime>,
+    pub title: Option<String>,
+    pub deleted_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = ChatsSchema)]
+pub struct AddChat {
+    pub chat_id: i64,
+    pub chatname: Option<String>,
+    pub description: Option<String>,
+    pub title: Option<String>,
+}
+
+impl AddChat {
+    pub fn new_from_tg(chat: &TgChat) -> Self {
+        Self {
+            chat_id: chat.id.0,
+            chatname: chat.username().map(|d| d.to_string()),
+            description: chat.description().map(|d| d.to_string()),
+            title: chat.title().map(|d| d.to_string()),
+        }
+    }
 }

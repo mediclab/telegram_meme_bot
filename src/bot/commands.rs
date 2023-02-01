@@ -3,7 +3,7 @@ use std::sync::Arc;
 use teloxide::types::ParseMode;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
-use crate::database::models::Chat;
+use crate::database::models::AddChat;
 use crate::Application;
 
 use super::markups::*;
@@ -140,15 +140,10 @@ impl CommandsHandler {
         }
 
         self.app.redis.register_chat(self.msg.chat.id.0);
-
-        let chat = self.msg.chat.clone();
-
-        let _ = self.app.database.add_chat(&Chat {
-            chat_id: chat.id.0,
-            chatname: chat.title().unwrap().to_string(),
-            description: chat.description().map(|d| d.to_string()),
-            created_at: None,
-        });
+        let _ = self
+            .app
+            .database
+            .add_chat(&AddChat::new_from_tg(&self.msg.chat));
 
         self.bot
             .send_message(self.msg.chat.id, "Чат успешно зарегистрирован!")
