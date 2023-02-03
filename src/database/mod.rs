@@ -1,17 +1,4 @@
-pub mod models;
-#[rustfmt::skip]
-mod schema;
-
-pub type PgPool = Pool<ConnectionManager<PgConnection>>;
-pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
-
-use crate::database::{
-    models::*,
-    schema::{
-        chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema,
-        users as UsersSchema,
-    },
-};
+use chrono::{NaiveDateTime, Utc};
 use diesel::{
     dsl,
     pg::PgConnection,
@@ -20,10 +7,23 @@ use diesel::{
     result::Error,
     sql_types::{BigInt, Bool},
 };
-
-use crate::utils::Period;
-use chrono::{NaiveDateTime, Utc};
 use uuid::Uuid;
+
+use crate::database::{
+    models::*,
+    schema::{
+        chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema,
+        users as UsersSchema,
+    },
+};
+use crate::utils::Period;
+
+pub mod models;
+#[rustfmt::skip]
+mod schema;
+
+pub type PgPool = Pool<ConnectionManager<PgConnection>>;
+pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
 pub struct DBManager {

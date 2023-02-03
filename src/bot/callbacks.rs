@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use teloxide::prelude::*;
+
 use crate::bot::markups::*;
 use crate::database::models::Meme;
 use crate::Application;
-use anyhow::Result;
-use std::sync::Arc;
-use teloxide::prelude::*;
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,

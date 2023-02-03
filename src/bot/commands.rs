@@ -1,10 +1,12 @@
-use super::markups::*;
+use std::sync::Arc;
+
+use anyhow::Result;
+use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+
 use crate::database::models::AddChat;
 use crate::Application;
 
-use anyhow::Result;
-use std::sync::Arc;
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use super::markups::*;
 
 #[derive(BotCommands, Clone)]
 #[command(

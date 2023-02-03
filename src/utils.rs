@@ -1,6 +1,8 @@
-use crate::database::models::AddUser;
-use crate::Application;
+use std::{thread::sleep, time::Duration};
 
+use anyhow::{anyhow, Result};
+use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
+use now::DateTimeNow;
 use opencv::{
     core::{Mat, Size},
     imgcodecs,
@@ -9,20 +11,17 @@ use opencv::{
     imgproc::InterpolationFlags,
     prelude::*,
 };
-
+use rand::seq::SliceRandom;
 use teloxide::{
     net::Download,
     prelude::*,
     types::{PhotoSize, User},
     Bot,
 };
-
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
-use now::DateTimeNow;
-use rand::seq::SliceRandom;
-use std::{thread::sleep, time::Duration};
 use tokio::fs::File;
+
+use crate::database::models::AddUser;
+use crate::Application;
 
 pub fn get_user_text(user: &User) -> String {
     match &user.username {

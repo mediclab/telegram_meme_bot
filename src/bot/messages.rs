@@ -1,14 +1,15 @@
-use crate::bot::markups::*;
-use crate::database::models::{AddMeme, AddUser, Meme};
-use crate::utils as Utils;
-use crate::Application;
+use std::sync::Arc;
 
 use anyhow::Result;
-use std::sync::Arc;
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, PhotoSize, Video},
 };
+
+use crate::bot::markups::*;
+use crate::database::models::{AddMeme, AddUser, Meme};
+use crate::utils as Utils;
+use crate::Application;
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -43,7 +44,13 @@ impl MessagesHandler {
         }
 
         // If caption contains "nomeme" - nothing to do.
-        if self.msg.caption().unwrap_or("").contains("nomeme") {
+        if self
+            .msg
+            .caption()
+            .unwrap_or("")
+            .to_lowercase()
+            .contains("nomeme")
+        {
             return Ok(());
         }
 

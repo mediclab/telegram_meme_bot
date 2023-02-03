@@ -1,25 +1,28 @@
 extern crate dotenv;
-extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
+extern crate pretty_env_logger;
 
-mod bot;
-mod database;
-mod redis;
-mod utils;
+use std::{env, sync::Arc};
 
-use crate::redis::RedisManager;
+use clap::Parser;
+use dotenv::dotenv;
+use teloxide::{prelude::*, types::Me};
+
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
     messages::MessagesHandler,
 };
-use clap::Parser;
 use database::DBManager;
-use dotenv::dotenv;
-use std::{env, sync::Arc};
-use teloxide::{prelude::*, types::Me};
 use utils::Period;
+
+use crate::redis::RedisManager;
+
+mod bot;
+mod database;
+mod redis;
+mod utils;
 
 pub struct Application {
     pub database: DBManager,
@@ -84,7 +87,7 @@ async fn main() {
         Commands::MemeOfWeek => {
             bot::top::send_top_stats(&bot, &app, Period::Week)
                 .await
-                .expect("Can't send meme of month");
+                .expect("Can't send meme of week");
         }
         Commands::MemeOfMonth => {
             bot::top::send_top_stats(&bot, &app, Period::Month)
@@ -94,7 +97,7 @@ async fn main() {
         Commands::MemeOfYear => {
             bot::top::send_top_stats(&bot, &app, Period::Year)
                 .await
-                .expect("Can't send meme of month");
+                .expect("Can't send meme of year");
         }
         Commands::UpdateUsers => {
             if chat_id_only < 0 {

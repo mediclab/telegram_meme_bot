@@ -1,10 +1,10 @@
-use crate::database::models::MemeLikeOperation;
-use crate::utils as Utils;
-use crate::Application;
-
 use anyhow::Result;
 use teloxide::prelude::*;
 use teloxide::types::User;
+
+use crate::database::models::MemeLikeOperation;
+use crate::utils as Utils;
+use crate::Application;
 
 pub async fn send_top_stats(bot: &Bot, app: &Application, period: Utils::Period) -> Result<()> {
     let mut text: String;
@@ -126,7 +126,6 @@ fn get_translations(period: &Utils::Period) -> (&str, &str) {
 
 async fn get_chat_member(bot: &Bot, chat_id: i64, user_id: u64) -> Result<User> {
     let member = bot.get_chat_member(ChatId(chat_id), UserId(user_id)).await;
-
     let user = member.expect("Can't get chat member").user;
 
     Ok(user)
