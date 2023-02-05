@@ -64,59 +64,35 @@ impl MemeMarkup {
     }
 }
 
-pub struct AccordionMarkup {
-    uuid: Uuid,
-}
-
-impl AccordionMarkup {
-    pub fn new(uuid: Uuid) -> Self {
-        Self { uuid }
-    }
-
-    pub fn get_markup(&self) -> InlineKeyboardMarkup {
-        InlineKeyboardMarkup::new(vec![
-            vec![InlineKeyboardButton::callback(
-                format!(
-                    "{} Беру на себя ответственность",
-                    emojis::get_by_shortcode("thumbsup").unwrap().as_str()
-                ),
-                json!(MemeCallback {
-                    uuid: self.uuid,
-                    op: CallbackOperations::None
-                })
-                .to_string(),
-            )],
-            vec![InlineKeyboardButton::callback(
-                format!(
-                    "{} Удалите, прошу прощения",
-                    emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
-                ),
-                json!(MemeCallback {
-                    uuid: self.uuid,
-                    op: CallbackOperations::Delete
-                })
-                .to_string(),
-            )],
-        ])
-    }
-}
-
 pub struct DeleteMarkup {
     uuid: Uuid,
+    ok_text: Option<String>,
+    none_text: Option<String>,
 }
 
 impl DeleteMarkup {
     pub fn new(uuid: Uuid) -> Self {
-        Self { uuid }
+        Self {
+            uuid,
+            ok_text: None,
+            none_text: None,
+        }
+    }
+
+    pub fn set_ok_text(mut self, text: &str) -> Self {
+        self.ok_text = Some(text.to_string());
+        self
+    }
+
+    pub fn set_none_text(mut self, text: &str) -> Self {
+        self.none_text = Some(text.to_string());
+        self
     }
 
     pub fn get_markup(&self) -> InlineKeyboardMarkup {
         InlineKeyboardMarkup::new(vec![
             vec![InlineKeyboardButton::callback(
-                format!(
-                    "{} Нет, я передумал(а)",
-                    emojis::get_by_shortcode("x").unwrap().as_str()
-                ),
+                self.none_text.to_owned().unwrap_or(String::from("None")),
                 json!(MemeCallback {
                     uuid: self.uuid,
                     op: CallbackOperations::None
@@ -124,10 +100,7 @@ impl DeleteMarkup {
                 .to_string(),
             )],
             vec![InlineKeyboardButton::callback(
-                format!(
-                    "{} Да, я хочу удалить",
-                    emojis::get_by_shortcode("wastebasket").unwrap().as_str()
-                ),
+                self.ok_text.to_owned().unwrap_or(String::from("Delete")),
                 json!(MemeCallback {
                     uuid: self.uuid,
                     op: CallbackOperations::Delete

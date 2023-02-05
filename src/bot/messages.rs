@@ -10,6 +10,7 @@ use crate::bot::markups::*;
 use crate::database::models::{AddMeme, AddUser, Meme};
 use crate::utils as Utils;
 use crate::Application;
+use crate::bot::Bot;
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -49,7 +50,7 @@ impl MessagesHandler {
             .caption()
             .unwrap_or("")
             .to_lowercase()
-            .contains("nomeme")
+            .contains("nomem")
         {
             return Ok(());
         }
@@ -164,11 +165,11 @@ impl MessagesHandler {
                         &Utils::from_hex_to_binary(&meme_hash),
                     );
 
-                    if percent > 90f64 && percent < 100f64 {
+                    if percent > 90f64 && percent < 99f64 {
                         if percent as i64 > s_meme.0 {
                             s_meme = (percent as i64, Some(meme));
                         }
-                    } else if percent == 100f64 {
+                    } else if percent >= 99f64 {
                         s_meme = (100, Some(meme));
                     }
                 }
@@ -229,6 +230,18 @@ impl MessagesHandler {
                         ),
                 )
                 .reply_to_message_id(meme.msg_id())
+                .reply_markup(
+                    DeleteMarkup::new(meme.uuid)
+                        .set_ok_text(&format!(
+                            "{} Упс, действительно было...",
+                            emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                        ))
+                        .set_none_text(&format!(
+                            "{} Это точно свежак! ",
+                            emojis::get_by_shortcode("x").unwrap().as_str()
+                        ))
+                        .get_markup(),
+                )
                 .await?;
         }
 

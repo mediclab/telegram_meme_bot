@@ -7,6 +7,7 @@ use std::{env, sync::Arc};
 
 use clap::Parser;
 use dotenv::dotenv;
+use teloxide::types::ParseMode;
 use teloxide::{prelude::*, types::Me};
 
 use bot::{
@@ -65,7 +66,7 @@ async fn main() {
     pretty_env_logger::init_timed();
 
     let args = Cli::parse();
-    let bot = Bot::from_env();
+    let bot = Bot::from_env().parse_mode(ParseMode::Html);
     let app = Arc::new(Application {
         database: DBManager::connect(&get_env("DATABASE_URL")),
         redis: RedisManager::connect(&get_env("REDIS_URL")),

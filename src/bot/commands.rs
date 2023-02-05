@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::database::models::AddChat;
 use crate::Application;
+use crate::bot::Bot;
 
 use super::markups::*;
 
@@ -97,13 +98,12 @@ impl CommandsHandler {
             .send_message(
                 self.msg.chat.id,
                 format!(
-                    "{}\n\nВерсия бота: {}\n{}",
+                    "{}\n\n{}\nВерсия бота: {}",
                     PublicCommand::descriptions(),
-                    self.app.version,
-                    include_str!("../../messages/help_text_addition.in")
+                    include_str!("../../messages/help_text_addition.in"),
+                    self.app.version
                 ),
             )
-            .parse_mode(ParseMode::Html)
             .await?;
 
         Ok(())
@@ -192,8 +192,18 @@ impl CommandsHandler {
                         )
                         .reply_to_message_id(repl.id)
                         .reply_markup(
-                            AccordionMarkup::new(meme.uuid).get_markup()
-                        ).await?;
+                            DeleteMarkup::new(meme.uuid)
+                                .set_ok_text(&format!(
+                                    "{} Удалите, прошу прощения",
+                                    emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
+                                ))
+                                .set_none_text(&format!(
+                                    "{} Беру на себя ответственность",
+                                    emojis::get_by_shortcode("thumbsup").unwrap().as_str()
+                                ))
+                                .get_markup()
+                        )
+                        .await?;
                 } else {
                     return Ok(());
                 }
@@ -234,7 +244,18 @@ impl CommandsHandler {
                             String::from("Вы действительно хотите удалить мем?"),
                         )
                         .reply_to_message_id(repl.id)
-                        .reply_markup(DeleteMarkup::new(meme.uuid).get_markup())
+                        .reply_markup(
+                            DeleteMarkup::new(meme.uuid)
+                                .set_ok_text(&format!(
+                                    "{} Да, я хочу удалить",
+                                    emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                                ))
+                                .set_none_text(&format!(
+                                    "{} Нет, я передумал(а)",
+                                    emojis::get_by_shortcode("x").unwrap().as_str()
+                                ))
+                                .get_markup(),
+                        )
                         .await?;
                 } else {
                     return Ok(());

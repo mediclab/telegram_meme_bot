@@ -16,17 +16,20 @@ use teloxide::{
     net::Download,
     prelude::*,
     types::{PhotoSize, User},
-    Bot,
 };
 use tokio::fs::File;
 
 use crate::database::models::AddUser;
 use crate::Application;
+use crate::bot::Bot;
 
 pub fn get_user_text(user: &User) -> String {
     match &user.username {
         Some(uname) => format!("@{uname}"),
-        None => format!("[{}](tg://user?id={})", user.first_name, user.id.0),
+        None => format!(
+            "<a href=\"tg://user?id={}\">{}</a>",
+            user.id.0, user.first_name
+        ),
     }
 }
 
@@ -223,6 +226,20 @@ pub fn compare_hashes(hash1: &str, hash2: &str) -> f64 {
         .count();
 
     ((hash1.len() - diffs_num) as f64 / hash1.len() as f64) * 100f64
+}
+
+pub async fn get_chat_admins(bot: &Bot, chat_id: i64) -> Vec<u64> {
+    let admins = bot.get_chat_administrators(ChatId(chat_id)).await;
+
+    if admins.is_err() {
+        return Vec::default();
+    }
+
+    admins
+        .unwrap()
+        .iter()
+        .map(|m| m.user.id.0)
+        .collect::<Vec<u64>>()
 }
 
 pub fn from_binary_to_hex(s: &str) -> String {

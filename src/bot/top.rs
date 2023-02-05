@@ -5,6 +5,7 @@ use teloxide::types::User;
 use crate::database::models::MemeLikeOperation;
 use crate::utils as Utils;
 use crate::Application;
+use crate::bot::Bot;
 
 pub async fn send_top_stats(bot: &Bot, app: &Application, period: Utils::Period) -> Result<()> {
     let mut text: String;
