@@ -169,49 +169,49 @@ impl CommandsHandler {
 
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == me.id {
-                    let meme = self
-                        .app
-                        .database
-                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
-                    let user_res = self
-                        .bot
-                        .get_chat_member(self.msg.chat.id, meme.user_id())
-                        .await;
-                    let mut user_text = String::new();
-
-                    if user_res.is_ok() {
-                        user_text = format!(
-                            "{}!\n",
-                            crate::app::utils::get_user_text(&user_res.unwrap().user)
-                        );
-                    }
-
-                    self.bot
-                        .delete_message(self.msg.chat.id, self.msg.id)
-                        .await?;
-                    self.bot
-                        .send_message(
-                            self.msg.chat.id,
-                            format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
-                        )
-                        .reply_to_message_id(repl.id)
-                        .reply_markup(
-                            DeleteMarkup::new(meme.uuid)
-                                .set_ok_text(&format!(
-                                    "{} Удалите, прошу прощения",
-                                    emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
-                                ))
-                                .set_none_text(&format!(
-                                    "{} Беру на себя ответственность",
-                                    emojis::get_by_shortcode("thumbsup").unwrap().as_str()
-                                ))
-                                .get_markup()
-                        )
-                        .await?;
-                } else {
+                if repl.from().unwrap().id != me.id {
                     return Ok(());
                 }
+
+                let meme = self
+                    .app
+                    .database
+                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                let user_res = self
+                    .bot
+                    .get_chat_member(self.msg.chat.id, meme.user_id())
+                    .await;
+                let mut user_text = String::new();
+
+                if user_res.is_ok() {
+                    user_text = format!(
+                        "{}!\n",
+                        crate::app::utils::get_user_text(&user_res.unwrap().user)
+                    );
+                }
+
+                self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
+                    )
+                    .reply_to_message_id(repl.id)
+                    .reply_markup(
+                        DeleteMarkup::new(meme.uuid)
+                            .set_ok_text(&format!(
+                                "{} Удалите, прошу прощения",
+                                emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
+                            ))
+                            .set_none_text(&format!(
+                                "{} Беру на себя ответственность",
+                                emojis::get_by_shortcode("thumbsup").unwrap().as_str()
+                            ))
+                            .get_markup()
+                    )
+                    .await?;
             }
             None => {
                 self.bot
@@ -235,38 +235,38 @@ impl CommandsHandler {
 
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == me.id {
-                    let meme = self
-                        .app
-                        .database
-                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
-                        .unwrap();
-
-                    self.bot
-                        .delete_message(self.msg.chat.id, self.msg.id)
-                        .await?;
-                    self.bot
-                        .send_message(
-                            self.msg.chat.id,
-                            String::from("Вы действительно хотите удалить мем?"),
-                        )
-                        .reply_to_message_id(repl.id)
-                        .reply_markup(
-                            DeleteMarkup::new(meme.uuid)
-                                .set_ok_text(&format!(
-                                    "{} Да, я хочу удалить",
-                                    emojis::get_by_shortcode("wastebasket").unwrap().as_str()
-                                ))
-                                .set_none_text(&format!(
-                                    "{} Нет, я передумал(а)",
-                                    emojis::get_by_shortcode("x").unwrap().as_str()
-                                ))
-                                .get_markup(),
-                        )
-                        .await?;
-                } else {
+                if repl.from().unwrap().id != me.id {
                     return Ok(());
                 }
+
+                let meme = self
+                    .app
+                    .database
+                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
+                    .unwrap();
+
+                self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        String::from("Вы действительно хотите удалить мем?"),
+                    )
+                    .reply_to_message_id(repl.id)
+                    .reply_markup(
+                        DeleteMarkup::new(meme.uuid)
+                            .set_ok_text(&format!(
+                                "{} Да, я хочу удалить",
+                                emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                            ))
+                            .set_none_text(&format!(
+                                "{} Нет, я передумал(а)",
+                                emojis::get_by_shortcode("x").unwrap().as_str()
+                            ))
+                            .get_markup(),
+                    )
+                    .await?;
             }
             None => {
                 self.bot

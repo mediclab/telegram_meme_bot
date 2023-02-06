@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
 
 use crate::app::Application;
@@ -88,17 +89,17 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn none(&self, meme: &Meme) -> Result<bool> {
+    pub async fn none(&self, meme: &Meme) -> Result<()> {
         let msg = self.callback.message.as_ref().unwrap();
 
-        if meme.user_id != self.callback.from.id.0 as i64 {
+        if !self.can_user_interact(meme) {
             self.bot
                 .answer_callback_query(&self.callback.id)
-                .text("Только пользователь отправивший мем, может сделать это")
+                .text("Только пользователь отправивший мем (или админ), может сделать это")
                 .show_alert(true)
                 .await?;
 
-            return Ok(false);
+            return Ok(());
         }
 
         self.bot.delete_message(msg.chat.id, msg.id).await?;
@@ -108,13 +109,23 @@ impl CallbackHandler {
             .text("Штош, на Вашей совести")
             .await?;
 
-        Ok(true)
+        Ok(())
     }
 
     pub async fn delete(&self, meme: &Meme) -> Result<()> {
-        if !self.none(meme).await? {
+        let msg = self.callback.message.as_ref().unwrap();
+
+        if !self.can_user_interact(meme) {
+            self.bot
+                .answer_callback_query(&self.callback.id)
+                .text("Только пользователь отправивший мем (или админ), может сделать это")
+                .show_alert(true)
+                .await?;
+
             return Ok(());
         }
+
+        self.bot.delete_message(msg.chat.id, msg.id).await?;
 
         self.bot
             .delete_message(meme.chat_id(), meme.msg_id())
@@ -145,5 +156,15 @@ impl CallbackHandler {
             .await?;
 
         Ok(())
+    }
+
+    fn can_user_interact(&self, meme: &Meme) -> bool {
+        let admins = self
+            .app
+            .redis
+            .get_chat_admins(self.callback.chat_id().unwrap().0);
+        let is_user_admin = admins.contains(&self.callback.from.id.0);
+
+        is_user_admin || (meme.user_id == self.callback.from.id.0 as i64)
     }
 }

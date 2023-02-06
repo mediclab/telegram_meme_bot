@@ -124,8 +124,13 @@ async fn main() {
                 )
                 .branch(
                     Update::filter_message()
+                        .filter(|m: Message| m.chat.is_private())
+                        .endpoint(MessagesHandler::private_handle),
+                )
+                .branch(
+                    Update::filter_message()
                         .filter(move |m: Message| filter_messages(&m, &chat_id_only))
-                        .endpoint(MessagesHandler::handle),
+                        .endpoint(MessagesHandler::public_handle),
                 )
                 .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
 

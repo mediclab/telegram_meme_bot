@@ -1,17 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use teloxide::types::ForwardedFrom;
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, PhotoSize, Video},
 };
 
-use crate::app::imghash::ImageHash;
-use crate::app::utils as Utils;
-use crate::app::utils::Messages;
-use crate::app::Application;
-use crate::bot::markups::*;
-use crate::bot::Bot;
+use crate::app::{imghash::ImageHash, utils as Utils, Application};
+use crate::bot::{markups::*, Bot};
 use crate::database::models::{AddMeme, AddUser, Meme};
 
 pub struct MessagesHandler {
@@ -21,7 +18,7 @@ pub struct MessagesHandler {
 }
 
 impl MessagesHandler {
-    pub async fn handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
+    pub async fn public_handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
         let handler = MessagesHandler { app, bot, msg };
 
         match &handler.msg.kind {
@@ -36,6 +33,31 @@ impl MessagesHandler {
             }
             _ => {}
         };
+
+        Ok(())
+    }
+
+    pub async fn private_handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
+        let handler = MessagesHandler { app, bot, msg };
+
+        if handler.msg.forward().is_none() {
+            return Ok(());
+        }
+
+        debug!("{:?}", handler.msg.forward());
+        debug!("{:?}", handler.msg);
+
+        let from_msg = handler.msg.forward().unwrap();
+
+        if let ForwardedFrom::Chat(chat) = &from_msg.from {
+            if !handler.app.redis.is_chat_registered(chat.id.0) {
+                return Ok(());
+            }
+
+            let chat_admins = handler.app.redis.get_chat_admins(chat.id.0);
+
+            if chat_admins.contains(&handler.msg.from().unwrap().id.0) {}
+        }
 
         Ok(())
     }
@@ -228,7 +250,10 @@ impl MessagesHandler {
                         .replace("{user_name}", &user_text)
                         .replace(
                             "{percent}",
-                            &Messages::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                            &Utils::Messages::pluralize(
+                                s_meme.0,
+                                ("процент", "процента", "процентов"),
+                            ),
                         ),
                 )
                 .reply_to_message_id(meme.msg_id())
