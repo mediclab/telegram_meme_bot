@@ -6,11 +6,13 @@ use teloxide::{
     types::{InputFile, MessageKind, PhotoSize, Video},
 };
 
+use crate::app::imghash::ImageHash;
+use crate::app::utils as Utils;
+use crate::app::utils::Messages;
+use crate::app::Application;
 use crate::bot::markups::*;
-use crate::database::models::{AddMeme, AddUser, Meme};
-use crate::utils as Utils;
-use crate::Application;
 use crate::bot::Bot;
+use crate::database::models::{AddMeme, AddUser, Meme};
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -137,7 +139,7 @@ impl MessagesHandler {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 
-        let (hash, hash_min) = match Utils::generate_hashes(&self.bot, &photos[0].file.id).await {
+        let (hash, hash_min) = match self.app.generate_hashes(&photos[0].file.id).await {
             Ok(res) => res,
             Err(e) => {
                 warn!("Can't generate hashes. Error: {e}");
@@ -160,7 +162,7 @@ impl MessagesHandler {
                 let meme_hash = meme.long_hash.clone().unwrap_or_default();
 
                 if meme_hash.len() == hash.len() {
-                    let percent = Utils::compare_hashes(
+                    let percent = ImageHash::compare_hashes(
                         &Utils::from_hex_to_binary(&hash),
                         &Utils::from_hex_to_binary(&meme_hash),
                     );
@@ -226,7 +228,7 @@ impl MessagesHandler {
                         .replace("{user_name}", &user_text)
                         .replace(
                             "{percent}",
-                            &Utils::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                            &Messages::pluralize(s_meme.0, ("процент", "процента", "процентов")),
                         ),
                 )
                 .reply_to_message_id(meme.msg_id())

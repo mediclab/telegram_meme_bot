@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use teloxide::{prelude::*, utils::command::BotCommands};
 
-use crate::database::models::AddChat;
-use crate::Application;
+use crate::app::Application;
 use crate::bot::Bot;
+use crate::database::models::AddChat;
 
 use super::markups::*;
 
@@ -125,22 +125,25 @@ impl CommandsHandler {
     }
 
     pub async fn register_command(&self) -> Result<()> {
+        let chat_id = self.msg.chat.id.0;
+
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
             .await?;
 
-        if self.app.redis.is_chat_registered(self.msg.chat.id.0) {
+        if self.app.redis.is_chat_registered(chat_id) {
             return Ok(());
         }
 
-        let admins = self.bot.get_chat_administrators(self.msg.chat.id).await?;
-        let uids = admins.iter().map(|m| m.user.id.0).collect::<Vec<u64>>();
+        let admins = self.app.get_chat_admins(chat_id).await;
 
-        if !uids.contains(&self.msg.from().unwrap().id.0) {
+        if !admins.contains(&self.msg.from().unwrap().id.0) {
             return Ok(());
         }
 
-        self.app.redis.register_chat(self.msg.chat.id.0);
+        self.app.redis.register_chat(chat_id);
+        self.app.redis.set_chat_admins(chat_id, &admins);
+
         let _ = self
             .app
             .database
@@ -162,9 +165,11 @@ impl CommandsHandler {
     }
 
     pub async fn accordion_command(&self) -> Result<()> {
+        let me = self.app.bot.get_me().await?;
+
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == self.app.bot.id {
+                if repl.from().unwrap().id == me.id {
                     let meme = self
                         .app
                         .database
@@ -178,7 +183,7 @@ impl CommandsHandler {
                     if user_res.is_ok() {
                         user_text = format!(
                             "{}!\n",
-                            crate::utils::get_user_text(&user_res.unwrap().user)
+                            crate::app::utils::get_user_text(&user_res.unwrap().user)
                         );
                     }
 
@@ -226,9 +231,11 @@ impl CommandsHandler {
     }
 
     pub async fn unmeme_command(&self) -> Result<()> {
+        let me = self.app.bot.get_me().await?;
+
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == self.app.bot.id {
+                if repl.from().unwrap().id == me.id {
                     let meme = self
                         .app
                         .database

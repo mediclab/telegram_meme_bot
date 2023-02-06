@@ -9,6 +9,7 @@ use diesel::{
 };
 use uuid::Uuid;
 
+use crate::app::utils::Period;
 use crate::database::{
     models::*,
     schema::{
@@ -16,7 +17,6 @@ use crate::database::{
         users as UsersSchema,
     },
 };
-use crate::utils::Period;
 
 pub mod models;
 #[rustfmt::skip]
