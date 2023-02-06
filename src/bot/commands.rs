@@ -1,10 +1,13 @@
-use super::markups::*;
-use crate::database::models::AddChat;
-use crate::Application;
+use std::sync::Arc;
 
 use anyhow::Result;
-use std::sync::Arc;
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use teloxide::{prelude::*, utils::command::BotCommands};
+
+use crate::app::Application;
+use crate::bot::Bot;
+use crate::database::models::AddChat;
+
+use super::markups::*;
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -95,13 +98,12 @@ impl CommandsHandler {
             .send_message(
                 self.msg.chat.id,
                 format!(
-                    "{}\n\nВерсия бота: {}\n{}",
+                    "{}\n\n{}\nВерсия бота: {}",
                     PublicCommand::descriptions(),
-                    self.app.version,
-                    include_str!("../../messages/help_text_addition.in")
+                    include_str!("../../messages/help_text_addition.in"),
+                    self.app.version
                 ),
             )
-            .parse_mode(ParseMode::Html)
             .await?;
 
         Ok(())
@@ -123,22 +125,25 @@ impl CommandsHandler {
     }
 
     pub async fn register_command(&self) -> Result<()> {
+        let chat_id = self.msg.chat.id.0;
+
         self.bot
             .delete_message(self.msg.chat.id, self.msg.id)
             .await?;
 
-        if self.app.redis.is_chat_registered(self.msg.chat.id.0) {
+        if self.app.redis.is_chat_registered(chat_id) {
             return Ok(());
         }
 
-        let admins = self.bot.get_chat_administrators(self.msg.chat.id).await?;
-        let uids = admins.iter().map(|m| m.user.id.0).collect::<Vec<u64>>();
+        let admins = self.app.get_chat_admins(chat_id).await;
 
-        if !uids.contains(&self.msg.from().unwrap().id.0) {
+        if !admins.contains(&self.msg.from().unwrap().id.0) {
             return Ok(());
         }
 
-        self.app.redis.register_chat(self.msg.chat.id.0);
+        self.app.redis.register_chat(chat_id);
+        self.app.redis.set_chat_admins(chat_id, &admins);
+
         let _ = self
             .app
             .database
@@ -160,41 +165,53 @@ impl CommandsHandler {
     }
 
     pub async fn accordion_command(&self) -> Result<()> {
+        let me = self.app.bot.get_me().await?;
+
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == self.app.bot.id {
-                    let meme = self
-                        .app
-                        .database
-                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
-                    let user_res = self
-                        .bot
-                        .get_chat_member(self.msg.chat.id, meme.user_id())
-                        .await;
-                    let mut user_text = String::new();
-
-                    if user_res.is_ok() {
-                        user_text = format!(
-                            "{}!\n",
-                            crate::utils::get_user_text(&user_res.unwrap().user)
-                        );
-                    }
-
-                    self.bot
-                        .delete_message(self.msg.chat.id, self.msg.id)
-                        .await?;
-                    self.bot
-                        .send_message(
-                            self.msg.chat.id,
-                            format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
-                        )
-                        .reply_to_message_id(repl.id)
-                        .reply_markup(
-                            AccordionMarkup::new(meme.uuid).get_markup()
-                        ).await?;
-                } else {
+                if repl.from().unwrap().id != me.id {
                     return Ok(());
                 }
+
+                let meme = self
+                    .app
+                    .database
+                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                let user_res = self
+                    .bot
+                    .get_chat_member(self.msg.chat.id, meme.user_id())
+                    .await;
+                let mut user_text = String::new();
+
+                if user_res.is_ok() {
+                    user_text = format!(
+                        "{}!\n",
+                        crate::app::utils::get_user_text(&user_res.unwrap().user)
+                    );
+                }
+
+                self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
+                    )
+                    .reply_to_message_id(repl.id)
+                    .reply_markup(
+                        DeleteMarkup::new(meme.uuid)
+                            .set_ok_text(&format!(
+                                "{} Удалите, прошу прощения",
+                                emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
+                            ))
+                            .set_none_text(&format!(
+                                "{} Беру на себя ответственность",
+                                emojis::get_by_shortcode("thumbsup").unwrap().as_str()
+                            ))
+                            .get_markup()
+                    )
+                    .await?;
             }
             None => {
                 self.bot
@@ -214,29 +231,42 @@ impl CommandsHandler {
     }
 
     pub async fn unmeme_command(&self) -> Result<()> {
+        let me = self.app.bot.get_me().await?;
+
         match self.msg.reply_to_message() {
             Some(repl) => {
-                if repl.from().unwrap().id == self.app.bot.id {
-                    let meme = self
-                        .app
-                        .database
-                        .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
-                        .unwrap();
-
-                    self.bot
-                        .delete_message(self.msg.chat.id, self.msg.id)
-                        .await?;
-                    self.bot
-                        .send_message(
-                            self.msg.chat.id,
-                            String::from("Вы действительно хотите удалить мем?"),
-                        )
-                        .reply_to_message_id(repl.id)
-                        .reply_markup(DeleteMarkup::new(meme.uuid).get_markup())
-                        .await?;
-                } else {
+                if repl.from().unwrap().id != me.id {
                     return Ok(());
                 }
+
+                let meme = self
+                    .app
+                    .database
+                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
+                    .unwrap();
+
+                self.bot
+                    .delete_message(self.msg.chat.id, self.msg.id)
+                    .await?;
+                self.bot
+                    .send_message(
+                        self.msg.chat.id,
+                        String::from("Вы действительно хотите удалить мем?"),
+                    )
+                    .reply_to_message_id(repl.id)
+                    .reply_markup(
+                        DeleteMarkup::new(meme.uuid)
+                            .set_ok_text(&format!(
+                                "{} Да, я хочу удалить",
+                                emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                            ))
+                            .set_none_text(&format!(
+                                "{} Нет, я передумал(а)",
+                                emojis::get_by_shortcode("x").unwrap().as_str()
+                            ))
+                            .get_markup(),
+                    )
+                    .await?;
             }
             None => {
                 self.bot

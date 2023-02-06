@@ -1,32 +1,30 @@
 extern crate dotenv;
-extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
+extern crate pretty_env_logger;
 
-mod bot;
-mod database;
-mod redis;
-mod utils;
+use std::{env, sync::Arc};
 
-use crate::redis::RedisManager;
+use clap::Parser;
+use dotenv::dotenv;
+use teloxide::prelude::*;
+use teloxide::types::ParseMode;
+
+use app::utils::Period;
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
     messages::MessagesHandler,
 };
-use clap::Parser;
 use database::DBManager;
-use dotenv::dotenv;
-use std::{env, sync::Arc};
-use teloxide::{prelude::*, types::Me};
-use utils::Period;
 
-pub struct Application {
-    pub database: DBManager,
-    pub redis: RedisManager,
-    pub bot: Me,
-    pub version: String,
-}
+use crate::app::Application;
+use crate::redis::RedisManager;
+
+mod app;
+mod bot;
+mod database;
+mod redis;
 
 #[rustfmt::skip]
 #[derive(Debug, Parser)]
@@ -62,11 +60,10 @@ async fn main() {
     pretty_env_logger::init_timed();
 
     let args = Cli::parse();
-    let bot = Bot::from_env();
     let app = Arc::new(Application {
         database: DBManager::connect(&get_env("DATABASE_URL")),
         redis: RedisManager::connect(&get_env("REDIS_URL")),
-        bot: bot.get_me().await.expect("Can't get bot information"),
+        bot: Bot::from_env().parse_mode(ParseMode::Html),
         version: VERSION.unwrap_or("unknown").to_string(),
     });
 
@@ -77,36 +74,37 @@ async fn main() {
         .unwrap_or(0);
 
     if chat_id_only < 0 {
+        let admins = app.get_chat_admins(chat_id_only).await;
+
         app.redis.register_chat(chat_id_only);
+        app.redis.set_chat_admins(chat_id_only, &admins);
     }
 
     match args.command {
         Commands::MemeOfWeek => {
-            bot::top::send_top_stats(&bot, &app, Period::Week)
+            bot::top::send_top_stats(&app, Period::Week)
                 .await
-                .expect("Can't send meme of month");
+                .expect("Can't send meme of week");
         }
         Commands::MemeOfMonth => {
-            bot::top::send_top_stats(&bot, &app, Period::Month)
+            bot::top::send_top_stats(&app, Period::Month)
                 .await
                 .expect("Can't send meme of month");
         }
         Commands::MemeOfYear => {
-            bot::top::send_top_stats(&bot, &app, Period::Year)
+            bot::top::send_top_stats(&app, Period::Year)
                 .await
-                .expect("Can't send meme of month");
+                .expect("Can't send meme of year");
         }
         Commands::UpdateUsers => {
             if chat_id_only < 0 {
-                utils::update_users(&bot, &app, chat_id_only)
+                app.update_users(chat_id_only)
                     .await
                     .expect("Can't update users");
             }
         }
         Commands::UpdateHashes => {
-            utils::update_hashes(&bot, &app)
-                .await
-                .expect("Can't update hashes");
+            app.update_hashes().await.expect("Can't update hashes");
         }
         Commands::Start => {
             info!("MemeBot version = {}", &app.version);
@@ -126,14 +124,19 @@ async fn main() {
                 )
                 .branch(
                     Update::filter_message()
+                        .filter(|m: Message| m.chat.is_private())
+                        .endpoint(MessagesHandler::private_handle),
+                )
+                .branch(
+                    Update::filter_message()
                         .filter(move |m: Message| filter_messages(&m, &chat_id_only))
-                        .endpoint(MessagesHandler::handle),
+                        .endpoint(MessagesHandler::public_handle),
                 )
                 .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
 
             info!("Starting dispatch...");
 
-            Dispatcher::builder(bot, handler)
+            Dispatcher::builder(app.bot.clone(), handler)
                 .dependencies(dptree::deps![Arc::clone(&app)])
                 .enable_ctrlc_handler()
                 .build()

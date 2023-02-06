@@ -1,14 +1,15 @@
-use crate::bot::markups::*;
-use crate::database::models::{AddMeme, AddUser, Meme};
-use crate::utils as Utils;
-use crate::Application;
+use std::sync::Arc;
 
 use anyhow::Result;
-use std::sync::Arc;
+use teloxide::types::ForwardedFrom;
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, PhotoSize, Video},
 };
+
+use crate::app::{imghash::ImageHash, utils as Utils, Application};
+use crate::bot::{markups::*, Bot};
+use crate::database::models::{AddMeme, AddUser, Meme};
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -17,7 +18,7 @@ pub struct MessagesHandler {
 }
 
 impl MessagesHandler {
-    pub async fn handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
+    pub async fn public_handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
         let handler = MessagesHandler { app, bot, msg };
 
         match &handler.msg.kind {
@@ -36,6 +37,31 @@ impl MessagesHandler {
         Ok(())
     }
 
+    pub async fn private_handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
+        let handler = MessagesHandler { app, bot, msg };
+
+        if handler.msg.forward().is_none() {
+            return Ok(());
+        }
+
+        debug!("{:?}", handler.msg.forward());
+        debug!("{:?}", handler.msg);
+
+        let from_msg = handler.msg.forward().unwrap();
+
+        if let ForwardedFrom::Chat(chat) = &from_msg.from {
+            if !handler.app.redis.is_chat_registered(chat.id.0) {
+                return Ok(());
+            }
+
+            let chat_admins = handler.app.redis.get_chat_admins(chat.id.0);
+
+            if chat_admins.contains(&handler.msg.from().unwrap().id.0) {}
+        }
+
+        Ok(())
+    }
+
     pub async fn common(&self) -> Result<()> {
         // If This is forwarded message - nothing to do.
         if self.msg.forward().is_some() {
@@ -43,7 +69,13 @@ impl MessagesHandler {
         }
 
         // If caption contains "nomeme" - nothing to do.
-        if self.msg.caption().unwrap_or("").contains("nomeme") {
+        if self
+            .msg
+            .caption()
+            .unwrap_or("")
+            .to_lowercase()
+            .contains("nomem")
+        {
             return Ok(());
         }
 
@@ -129,7 +161,7 @@ impl MessagesHandler {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 
-        let (hash, hash_min) = match Utils::generate_hashes(&self.bot, &photos[0].file.id).await {
+        let (hash, hash_min) = match self.app.generate_hashes(&photos[0].file.id).await {
             Ok(res) => res,
             Err(e) => {
                 warn!("Can't generate hashes. Error: {e}");
@@ -152,16 +184,16 @@ impl MessagesHandler {
                 let meme_hash = meme.long_hash.clone().unwrap_or_default();
 
                 if meme_hash.len() == hash.len() {
-                    let percent = Utils::compare_hashes(
+                    let percent = ImageHash::compare_hashes(
                         &Utils::from_hex_to_binary(&hash),
                         &Utils::from_hex_to_binary(&meme_hash),
                     );
 
-                    if percent > 90f64 && percent < 100f64 {
+                    if percent > 90f64 && percent < 99f64 {
                         if percent as i64 > s_meme.0 {
                             s_meme = (percent as i64, Some(meme));
                         }
-                    } else if percent == 100f64 {
+                    } else if percent >= 99f64 {
                         s_meme = (100, Some(meme));
                     }
                 }
@@ -218,10 +250,25 @@ impl MessagesHandler {
                         .replace("{user_name}", &user_text)
                         .replace(
                             "{percent}",
-                            &Utils::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                            &Utils::Messages::pluralize(
+                                s_meme.0,
+                                ("процент", "процента", "процентов"),
+                            ),
                         ),
                 )
                 .reply_to_message_id(meme.msg_id())
+                .reply_markup(
+                    DeleteMarkup::new(meme.uuid)
+                        .set_ok_text(&format!(
+                            "{} Упс, действительно было...",
+                            emojis::get_by_shortcode("wastebasket").unwrap().as_str()
+                        ))
+                        .set_none_text(&format!(
+                            "{} Это точно свежак! ",
+                            emojis::get_by_shortcode("x").unwrap().as_str()
+                        ))
+                        .get_markup(),
+                )
                 .await?;
         }
 

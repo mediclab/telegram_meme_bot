@@ -1,11 +1,12 @@
-use crate::database::schema::{
-    chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
-};
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;
 use teloxide::types::{Chat as TgChat, ChatId, Message, MessageId, User as TgUser, UserId};
 use uuid::Uuid;
+
+use crate::database::schema::{
+    chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
+};
 
 #[derive(Debug, Selectable, Queryable, Identifiable)]
 #[diesel(primary_key(uuid))]
