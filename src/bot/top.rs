@@ -117,6 +117,28 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
             .expect("Can't send 'top of' message");
     }
 
+    let _res = app.database.get_max_disliked_meme(&period);
+
+    if _res.is_ok() && period == Utils::Period::Week {
+        let (meme, dislikes) = _res.as_ref().unwrap();
+        let user = app
+            .get_chat_user(meme.chat_id().0, meme.user_id().0)
+            .await?;
+
+        text = format!(
+            "Вы только посмотрите, {} на твой мем наставили {}!\n. Ты точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? {}",
+            Utils::get_user_text(&user),
+            Messages::pluralize(*dislikes, ("дизлайк", "дизлайка", "дизлайков")),
+            emojis::get_by_shortcode("thinking").unwrap().as_str()
+        );
+
+        app.bot
+            .send_message(meme.chat_id(), &text)
+            .reply_to_message_id(meme.msg_id())
+            .await
+            .expect("Can't send 'top of' message");
+    }
+
     Ok(())
 }
 

@@ -246,7 +246,23 @@ impl DBManager {
             .load::<i64>(&mut *self.get_connection())
     }
 
-    pub fn get_active_chat_ids(&self) {}
+    pub fn get_max_disliked_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
+        let (start, end) = period.dates();
+
+        MemeLikesSchema::table
+            .inner_join(MemesSchema::table)
+            .group_by(MemesSchema::dsl::uuid)
+            .filter(MemeLikesSchema::dsl::created_at.ge(start.naive_utc()))
+            .filter(MemeLikesSchema::dsl::created_at.le(end.naive_utc()))
+            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Dislike.id()))
+            .select((
+                MemesSchema::all_columns,
+                dsl::sql::<BigInt>("ABS(SUM(\"meme_likes\".\"num\")) as sum"),
+            ))
+            .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") < -5"))
+            .order_by(dsl::sql::<BigInt>("sum ASC"))
+            .first(&mut *self.get_connection())
+    }
 
     fn insert_for_like(
         &self,

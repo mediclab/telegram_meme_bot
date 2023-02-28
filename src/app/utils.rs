@@ -6,10 +6,7 @@ use teloxide::types::User;
 pub fn get_user_text(user: &User) -> String {
     match &user.username {
         Some(uname) => format!("@{uname}"),
-        None => format!(
-            "<a href=\"tg://user?id={}\">{}</a>",
-            user.id.0, user.first_name
-        ),
+        None => format!("<a href=\"{}\">{}</a>", user.url(), user.first_name),
     }
 }
 
@@ -104,6 +101,7 @@ impl Messages {
     }
 }
 
+#[derive(PartialEq)]
 pub enum Period {
     Week,
     Month,
