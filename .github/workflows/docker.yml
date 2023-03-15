@@ -1,8 +1,8 @@
 name: Docker Image CI
 
 on:
-  push:
-    tags: [ "*.*.*" ]
+  release:
+    types: [published]
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,7 +16,7 @@ jobs:
       - name: Set version from Cargo.toml
         run: |
           echo "app_version=$(cat Cargo.toml | grep -A3 '^\[package\]$' | grep -Po '(?<=^version = ")[^"]*(?=".*)' | tr -dc 0-9)"  >> $GITHUB_ENV
-          echo "tag_version=$(echo ${{ github.ref_name }} | tr -dc 0-9)" >> $GITHUB_ENV
+          echo "tag_version=$(echo ${{ github.event.release.tag_name }} | tr -dc 0-9)" >> $GITHUB_ENV
       - name: Check versions
         if: ${{ env.tag_version != env.app_version }}
         run: |
@@ -26,7 +26,7 @@ jobs:
         env:
           HOST: ${{ secrets.DOCKER_HOME_HOST }}
         run: |
-          docker build . --file Dockerfile-prod --tag $HOST/mediclab/tg_meme_bot:${{ github.ref_name }} --tag $HOST/mediclab/tg_meme_bot:latest
+          docker build . --file Dockerfile-prod --tag $HOST/mediclab/tg_meme_bot:${{ github.event.release.tag_name }} --tag $HOST/mediclab/tg_meme_bot:latest
       - name: Push image to Private Docker
         env:
           DOCKER_PASSWD: ${{ secrets.DOCKER_HOME_PASSWORD }}
