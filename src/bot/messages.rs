@@ -161,7 +161,8 @@ impl MessagesHandler {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 
-        let (hash, hash_min) = match self.app.generate_hashes(&photos[0].file.id).await {
+        let hash_result = self.app.generate_hashes(&photos[0].file.id).await;
+        let (hash, hash_min) = match hash_result {
             Ok(res) => res,
             Err(e) => {
                 warn!("Can't generate hashes. Error: {e}");
@@ -227,10 +228,16 @@ impl MessagesHandler {
             .expect("Can't add photo meme");
 
         let markup = MemeMarkup::new(0, 0, meme.uuid);
+        let caption = if let Some(caption) = self.msg.caption() {
+            format!("\n\nС подписью: {caption}")
+        } else {
+            String::new()
+        };
+
         let bot_msg = self
             .bot
             .send_photo(self.msg.chat.id, InputFile::file_id(&photos[0].file.id))
-            .caption(format!("Оцените мем {user_text}"))
+            .caption(format!("Оцените мем {user_text}{caption}"))
             .reply_markup(markup.get_markup())
             .await?;
 
@@ -260,7 +267,7 @@ impl MessagesHandler {
                 .reply_markup(
                     DeleteMarkup::new(meme.uuid)
                         .set_ok_text(&format!(
-                            "{} Упс, действительно было...",
+                            "{} Упс, действительно, было...",
                             emojis::get_by_shortcode("wastebasket").unwrap().as_str()
                         ))
                         .set_none_text(&format!(
@@ -294,10 +301,16 @@ impl MessagesHandler {
             .await?;
 
         let markup = MemeMarkup::new(0, 0, meme.uuid);
+        let caption = if let Some(caption) = self.msg.caption() {
+            format!("\n\nС подписью: {caption}")
+        } else {
+            String::new()
+        };
+
         let bot_msg = self
             .bot
             .send_video(self.msg.chat.id, InputFile::file_id(&video.file.id))
-            .caption(format!("Оцените видео-мем {user_text}"))
+            .caption(format!("Оцените видео-мем {user_text}{caption}"))
             .reply_markup(markup.get_markup())
             .await?;
 
