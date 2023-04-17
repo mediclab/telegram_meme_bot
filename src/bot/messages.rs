@@ -87,6 +87,8 @@ impl MessagesHandler {
 
         if self.msg.photo().is_some() || self.msg.video().is_some() {
             if !self.app.redis.is_chat_registered(self.msg.chat.id.0) {
+                warn!("Chat {} is not registered", self.msg.chat.id.0);
+
                 return Ok(());
             }
 
@@ -246,7 +248,6 @@ impl MessagesHandler {
             .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
 
         if s_meme.0 > 0 {
-            let meme = s_meme.1.unwrap();
             let messages = Utils::Messages::load(include_str!("../../messages/similar_meme.in"));
 
             self.bot
@@ -263,7 +264,7 @@ impl MessagesHandler {
                             ),
                         ),
                 )
-                .reply_to_message_id(meme.msg_id())
+                .reply_to_message_id(s_meme.1.unwrap().msg_id())
                 .reply_markup(
                     DeleteMarkup::new(meme.uuid)
                         .set_ok_text(&format!(
