@@ -9,7 +9,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 
 WORKDIR /opt
 
-RUN git clone --depth 1 --branch '4.x' https://github.com/opencv/opencv.git && \
+RUN git clone --depth 1 --branch '4.7.0' https://github.com/opencv/opencv.git && \
     cd ./opencv && mkdir build && cd build && \
     cmake \
       -D CMAKE_BUILD_TYPE=RELEASE \

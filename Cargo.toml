@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
 
 [profile.docker]
@@ -30,5 +30,5 @@ futures = "0.3"
 serde = "1.0"
 serde_json = "1.0"
 rand = "0.8"
-opencv = "0.77.0"
+opencv = "0.78.0"
 anyhow = "1.0.68"
