@@ -126,7 +126,7 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
             .await?;
 
         text = format!(
-            "Вы только посмотрите, {} на твой мем наставили {}!\n. Ты точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? {}",
+            "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? {}",
             Utils::get_user_text(&user),
             Messages::pluralize(*dislikes, ("дизлайк", "дизлайка", "дизлайков")),
             emojis::get_by_shortcode("thinking").unwrap().as_str()
