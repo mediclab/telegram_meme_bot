@@ -1,6 +1,15 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    chat_admins (uuid) {
+        uuid -> Uuid,
+        chat_id -> Int8,
+        user_id -> Int8,
+        created_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     chats (chat_id) {
         chat_id -> Int8,
         chatname -> Nullable<Varchar>,
@@ -36,6 +45,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    messages (uuid) {
+        uuid -> Uuid,
+        message_type -> Varchar,
+        message -> Nullable<Text>,
+        created_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     users (user_id) {
         user_id -> Int8,
         username -> Nullable<Varchar>,
@@ -49,8 +67,10 @@ diesel::table! {
 diesel::joinable!(meme_likes -> memes (meme_uuid));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    chat_admins,
     chats,
     meme_likes,
     memes,
+    messages,
     users,
 );

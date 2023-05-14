@@ -8,18 +8,14 @@ use std::{env, sync::Arc};
 use clap::Parser;
 use dotenv::dotenv;
 use teloxide::prelude::*;
-use teloxide::types::ParseMode;
 
+use crate::app::Application;
 use app::utils::Period;
 use bot::{
     callbacks::CallbackHandler,
     commands::{CommandsHandler, PrivateCommand, PublicCommand},
     messages::MessagesHandler,
 };
-use database::DBManager;
-
-use crate::app::Application;
-use crate::redis::RedisManager;
 
 mod app;
 mod bot;
@@ -54,18 +50,11 @@ enum Commands {
 
 #[tokio::main]
 async fn main() {
-    const VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
-
     dotenv().ok();
     pretty_env_logger::init_timed();
 
     let args = Cli::parse();
-    let app = Arc::new(Application {
-        database: DBManager::connect(&get_env("DATABASE_URL")),
-        redis: RedisManager::connect(&get_env("REDIS_URL")),
-        bot: Bot::from_env().parse_mode(ParseMode::Html),
-        version: VERSION.unwrap_or("unknown").to_string(),
-    });
+    let app = Arc::new(Application::new());
 
     let chat_id_only: i64 = env::var("ONLY_FOR_CHAT_ID")
         .unwrap_or("0".to_string())
@@ -74,10 +63,7 @@ async fn main() {
         .unwrap_or(0);
 
     if chat_id_only < 0 {
-        let admins = app.get_chat_admins(chat_id_only).await;
-
-        app.redis.register_chat(chat_id_only);
-        app.redis.set_chat_admins(chat_id_only, &admins);
+        app.register_chat(chat_id_only).await;
     }
 
     match args.command {
@@ -144,10 +130,6 @@ async fn main() {
                 .await;
         }
     };
-}
-
-fn get_env(env: &'static str) -> String {
-    env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
 }
 
 fn filter_messages(m: &Message, chat_id: &i64) -> bool {

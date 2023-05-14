@@ -5,7 +5,8 @@ use teloxide::types::{Chat as TgChat, ChatId, Message, MessageId, User as TgUser
 use uuid::Uuid;
 
 use crate::database::schema::{
-    chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
+    chat_admins as ChatAdminsSchema, chats as ChatsSchema, meme_likes as MemeLikesSchema,
+    memes as MemesSchema, users as UsersSchema,
 };
 
 #[derive(Debug, Selectable, Queryable, Identifiable)]
@@ -157,4 +158,11 @@ impl AddChat {
             title: chat.title().map(|d| d.to_string()),
         }
     }
+}
+
+#[derive(Debug, Insertable)]
+#[diesel(table_name = ChatAdminsSchema)]
+pub struct AddChatAdmin {
+    pub chat_id: i64,
+    pub user_id: i64,
 }
