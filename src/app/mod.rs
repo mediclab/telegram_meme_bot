@@ -1,11 +1,13 @@
-use std::{thread::sleep, time::Duration};
+use std::{env, thread::sleep, time::Duration};
 
 use anyhow::{anyhow, Result};
-use teloxide::types::User;
-use teloxide::{net::Download, prelude::*, types::PhotoSize};
-use tokio::fs::File;
-
 use imghash::ImageHash;
+use teloxide::{
+    net::Download,
+    prelude::*,
+    types::{ParseMode, PhotoSize, User},
+};
+use tokio::fs::File;
 use utils::from_binary_to_hex;
 
 use crate::bot;
@@ -24,6 +26,17 @@ pub struct Application {
 }
 
 impl Application {
+    pub fn new() -> Self {
+        Self {
+            database: DBManager::connect(&Application::get_env("DATABASE_URL")),
+            redis: RedisManager::connect(&Application::get_env("REDIS_URL")),
+            bot: Bot::from_env().parse_mode(ParseMode::Html),
+            version: option_env!("CARGO_PKG_VERSION")
+                .unwrap_or("unknown")
+                .to_string(),
+        }
+    }
+
     pub async fn update_hashes(&self) -> Result<()> {
         let memes = self.database.get_memes_without_hashes()?;
 
@@ -119,6 +132,19 @@ impl Application {
         Ok(())
     }
 
+    pub async fn register_chat(&self, chat_id: i64) -> bool {
+        let admins = self.get_chat_admins(chat_id).await;
+
+        self.redis.register_chat(chat_id);
+        self.redis.set_chat_admins(chat_id, &admins);
+
+        admins.into_iter().for_each(|admin| {
+            self.database.add_chat_admin(chat_id, admin);
+        });
+
+        true
+    }
+
     pub async fn get_chat_admins(&self, chat_id: i64) -> Vec<u64> {
         let admins = self.bot.get_chat_administrators(ChatId(chat_id)).await;
 
@@ -140,5 +166,9 @@ impl Application {
             .await;
 
         Ok(member.expect("Can't get chat member").user)
+    }
+
+    fn get_env(env: &'static str) -> String {
+        env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
     }
 }

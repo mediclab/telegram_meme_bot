@@ -38,6 +38,8 @@ pub enum PublicCommand {
 pub enum PrivateCommand {
     #[command(description = "Показывает перечень команд")]
     Help,
+    #[command(description = "Отправить сообщение в чат")]
+    Message(String),
 }
 
 pub struct CommandsHandler {
@@ -88,6 +90,9 @@ impl CommandsHandler {
             PrivateCommand::Help => {
                 handler.help_command_private().await?;
             }
+            PrivateCommand::Message(text) => {
+                handler.message_command(&text).await?;
+            }
         };
 
         Ok(())
@@ -120,6 +125,28 @@ impl CommandsHandler {
                 ),
             )
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn message_command(&self, text: &str) -> Result<()> {
+        let user_chats = self
+            .app
+            .database
+            .get_admin_chats(self.msg.from().unwrap().id.0)
+            .unwrap_or_default();
+
+        match user_chats.len() {
+            0 => {}
+            1 => {
+                let chat_id = *user_chats.first().unwrap();
+                self.bot.send_message(ChatId(chat_id), text).await?;
+            }
+            2.. => {
+                // TODO
+            }
+            _ => {}
+        }
 
         Ok(())
     }

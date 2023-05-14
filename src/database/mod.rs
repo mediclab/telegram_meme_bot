@@ -13,8 +13,8 @@ use crate::app::utils::Period;
 use crate::database::{
     models::*,
     schema::{
-        chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema,
-        users as UsersSchema,
+        chat_admins as ChatAdminsSchema, chats as ChatsSchema, meme_likes as MemeLikesSchema,
+        memes as MemesSchema, users as UsersSchema,
     },
 };
 
@@ -101,6 +101,33 @@ impl DBManager {
             .filter(MemesSchema::dsl::uuid.eq(uuid))
             .execute(&mut *self.get_connection())
             .is_ok()
+    }
+
+    pub fn add_chat_admin(&self, chat_id: i64, user_id: u64) -> bool {
+        diesel::insert_into(ChatAdminsSchema::table)
+            .values(&AddChatAdmin {
+                chat_id,
+                user_id: user_id as i64,
+            })
+            .execute(&mut *self.get_connection())
+            .is_ok()
+    }
+
+    // pub fn is_user_chat_admin(&self, chat_id: i64, user_id: u64) -> bool {
+    //     dsl::select(dsl::exists(
+    //         ChatAdminsSchema::table
+    //             .filter(ChatAdminsSchema::dsl::chat_id.eq(chat_id))
+    //             .filter(ChatAdminsSchema::dsl::user_id.eq(user_id as i64)),
+    //     ))
+    //     .get_result(&mut *self.get_connection())
+    //     .unwrap_or(false)
+    // }
+
+    pub fn get_admin_chats(&self, user_id: u64) -> Result<Vec<i64>, Error> {
+        ChatAdminsSchema::table
+            .select(ChatAdminsSchema::dsl::chat_id)
+            .filter(ChatAdminsSchema::dsl::user_id.eq(user_id as i64))
+            .load(&mut *self.get_connection())
     }
 
     pub fn like(&self, from_user_id: i64, uuid: &Uuid) -> bool {
