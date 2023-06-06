@@ -19,28 +19,48 @@ impl CallbackHandler {
     pub async fn handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<()> {
         let handler = CallbackHandler { app, bot, callback };
 
+        match &handler.callback.chat_id() {
+            Some(chat) => {
+                if chat.0 > 0 {
+                    handler.private_handle().await?;
+                } else {
+                    handler.public_handle().await?;
+                }
+            }
+
+            None => {}
+        }
+
+        Ok(())
+    }
+
+    pub async fn private_handle(&self) -> Result<()> {
+        Ok(())
+    }
+
+    pub async fn public_handle(&self) -> Result<()> {
         let data: MemeCallback = serde_json::from_str(
-            &handler
+            &self
                 .callback
                 .data
                 .clone()
                 .unwrap_or_else(|| r#"{}"#.to_string()),
         )?;
 
-        let meme = handler.app.database.get_meme(&data.uuid)?;
+        let meme = self.app.database.get_meme(&data.uuid)?;
 
         match data.op {
             CallbackOperations::Like => {
-                handler.like(&meme).await?;
+                self.like(&meme).await?;
             }
             CallbackOperations::Dislike => {
-                handler.dislike(&meme).await?;
+                self.dislike(&meme).await?;
             }
             CallbackOperations::Delete => {
-                handler.delete(&meme).await?;
+                self.delete(&meme).await?;
             }
             CallbackOperations::None => {
-                handler.none(&meme).await?;
+                self.none(&meme).await?;
             }
         };
 
