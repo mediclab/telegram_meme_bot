@@ -61,14 +61,16 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         let (user_id, count) = _res.unwrap();
         let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
 
-        text = format!(
-            "{text}{} Хитрец {}:\n{} лайкнул свои же мемы {} {}!\n\n",
-            emojis::get_by_shortcode("smiling_imp").unwrap().as_str(),
-            period_text.0,
-            Utils::get_user_text(&user),
-            Messages::pluralize(count, ("раз", "раза", "раз")),
-            period_text.1
-        );
+        if count > 4 {
+            text = format!(
+                "{text}{} Хитрец {}:\n{} лайкнул свои же мемы {} {}!\n\n",
+                emojis::get_by_shortcode("smiling_imp").unwrap().as_str(),
+                period_text.0,
+                Utils::get_user_text(&user),
+                Messages::pluralize(count, ("раз", "раза", "раз")),
+                period_text.1
+            );
+        }
     }
 
     let _res = app

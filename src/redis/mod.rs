@@ -18,6 +18,24 @@ impl RedisManager {
             .unwrap_or(false)
     }
 
+    pub fn can_send_message(&self, key: &str, chat_id: i64, message_id: i32) -> bool {
+        let r_message_id = self
+            .get_connection()
+            .get(&format!("{chat_id}_msg_{key}"))
+            .unwrap_or(0);
+
+        if r_message_id == 0 || (message_id - r_message_id > 20) {
+            let _: () = self
+                .get_connection()
+                .set_ex(&format!("{chat_id}_msg_{key}"), message_id, 15 * 60)
+                .unwrap_or_default();
+
+            return true;
+        }
+
+        false
+    }
+
     pub fn register_chat(&self, chat_id: i64) {
         self.get_connection()
             .set(&format!("{chat_id}_registered"), true)

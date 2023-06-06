@@ -192,7 +192,7 @@ impl MessagesHandler {
                         &Utils::from_hex_to_binary(&meme_hash),
                     );
 
-                    if percent > 90f64 && percent < 99f64 {
+                    if percent > 93f64 && percent < 99f64 {
                         if percent as i64 > s_meme.0 {
                             s_meme = (percent as i64, Some(meme));
                         }

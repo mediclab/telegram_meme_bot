@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2021"
 
 [profile.docker]
@@ -14,13 +14,13 @@ teloxide = { version = "0.12", features = ["macros"] }
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 # Logs Libraries
 log = "0.4"
-pretty_env_logger = "0.4"
+pretty_env_logger = "0.5"
 # Env Files Loader
 dotenv = "0.15"
 # Comand-Line Arguments
 clap = { version = "4.0", features = ["derive"] }
 # Database tools
-diesel = { version = "2.0", features = ["postgres", "extras"] }
+diesel = { version = "2.1", features = ["postgres", "extras"] }
 now = "0.1.3"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }

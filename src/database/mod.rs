@@ -291,6 +291,34 @@ impl DBManager {
             .first(&mut *self.get_connection())
     }
 
+    pub fn get_memes_count(&self, chat_id: i64) -> i64 {
+        MemesSchema::table
+            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
+            .count()
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
+    }
+
+    pub fn get_meme_likes_count(&self, chat_id: i64) -> i64 {
+        MemeLikesSchema::table
+            .inner_join(MemesSchema::table)
+            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
+            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Like.id()))
+            .count()
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
+    }
+
+    pub fn get_meme_dislikes_count(&self, chat_id: i64) -> i64 {
+        MemeLikesSchema::table
+            .inner_join(MemesSchema::table)
+            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
+            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Dislike.id()))
+            .count()
+            .get_result(&mut *self.get_connection())
+            .unwrap_or(0)
+    }
+
     fn insert_for_like(
         &self,
         from_user_id: i64,

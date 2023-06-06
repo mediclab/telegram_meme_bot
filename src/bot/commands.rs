@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::app::Application;
@@ -26,6 +27,8 @@ pub enum PublicCommand {
     Accordion,
     #[command(description = "Удалить свой мем")]
     UnMeme,
+    #[command(description = "Статистика мемочата")]
+    Stats,
     #[command(description = "Зарегистрировать чат (только для админов)")]
     Register,
 }
@@ -57,6 +60,11 @@ impl CommandsHandler {
     ) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
+        handler
+            .bot
+            .delete_message(handler.msg.chat.id, handler.msg.id)
+            .await?;
+
         match cmd {
             PublicCommand::Help => {
                 handler.help_command_public().await?;
@@ -72,6 +80,9 @@ impl CommandsHandler {
             }
             PublicCommand::Register => {
                 handler.register_command().await?;
+            }
+            PublicCommand::Stats => {
+                handler.stats_command().await?;
             }
         };
 
@@ -99,6 +110,15 @@ impl CommandsHandler {
     }
 
     pub async fn help_command_public(&self) -> Result<()> {
+        let can_send = self
+            .app
+            .redis
+            .can_send_message("help", self.msg.chat.id.0, self.msg.id.0);
+
+        if !can_send {
+            return Ok(());
+        }
+
         self.bot
             .send_message(
                 self.msg.chat.id,
@@ -143,7 +163,15 @@ impl CommandsHandler {
                 self.bot.send_message(ChatId(chat_id), text).await?;
             }
             2.. => {
-                // TODO
+                // self.bot
+                //     .send_message(self.msg.chat.id, "В какой чат отправить сообщение?")
+                //     .reply_markup(InlineKeyboardMarkup::new(user_chats.iter().map(|chat| {
+                //         vec![InlineKeyboardButton::callback(
+                //             chat.to_string(),
+                //             format!("data: {}", chat),
+                //         )]
+                //     })))
+                //     .await?;
             }
             _ => {}
         }
@@ -153,10 +181,6 @@ impl CommandsHandler {
 
     pub async fn register_command(&self) -> Result<()> {
         let chat_id = self.msg.chat.id.0;
-
-        self.bot
-            .delete_message(self.msg.chat.id, self.msg.id)
-            .await?;
 
         if self.app.redis.is_chat_registered(chat_id) {
             return Ok(());
@@ -200,6 +224,15 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
+                let can_send =
+                    self.app
+                        .redis
+                        .can_send_message("accordion", self.msg.chat.id.0, self.msg.id.0);
+
+                if !can_send {
+                    return Ok(());
+                }
+
                 let meme = self
                     .app
                     .database
@@ -217,9 +250,6 @@ impl CommandsHandler {
                     );
                 }
 
-                self.bot
-                    .delete_message(self.msg.chat.id, self.msg.id)
-                    .await?;
                 self.bot
                     .send_message(
                         self.msg.chat.id,
@@ -241,16 +271,22 @@ impl CommandsHandler {
                     .await?;
             }
             None => {
-                self.bot
-                    .delete_message(self.msg.chat.id, self.msg.id)
-                    .await?;
+                let can_send = self.app.redis.can_send_message(
+                    "accordion_none",
+                    self.msg.chat.id.0,
+                    self.msg.id.0,
+                );
 
-                self.bot
-                    .send_message(
-                        self.msg.chat.id,
-                        String::from("Чтобы пожаловаться на сообщение, на него нужно ответить!"),
-                    )
-                    .await?;
+                if can_send {
+                    self.bot
+                        .send_message(
+                            self.msg.chat.id,
+                            String::from(
+                                "Чтобы пожаловаться на сообщение, на него нужно ответить!",
+                            ),
+                        )
+                        .await?;
+                }
             }
         }
 
@@ -266,15 +302,21 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
+                let can_send =
+                    self.app
+                        .redis
+                        .can_send_message("unmeme", self.msg.chat.id.0, self.msg.id.0);
+
+                if !can_send {
+                    return Ok(());
+                }
+
                 let meme = self
                     .app
                     .database
                     .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
                     .unwrap();
 
-                self.bot
-                    .delete_message(self.msg.chat.id, self.msg.id)
-                    .await?;
                 self.bot
                     .send_message(
                         self.msg.chat.id,
@@ -296,18 +338,48 @@ impl CommandsHandler {
                     .await?;
             }
             None => {
-                self.bot
-                    .delete_message(self.msg.chat.id, self.msg.id)
-                    .await?;
-
-                self.bot
-                    .send_message(
-                        self.msg.chat.id,
-                        String::from("Чтобы удалить свой мем, нужно ответить на него!"),
-                    )
-                    .await?;
+                let can_send = self.app.redis.can_send_message(
+                    "unmeme_none",
+                    self.msg.chat.id.0,
+                    self.msg.id.0,
+                );
+                if can_send {
+                    self.bot
+                        .send_message(
+                            self.msg.chat.id,
+                            String::from("Чтобы удалить свой мем, нужно ответить на него!"),
+                        )
+                        .await?;
+                }
             }
         }
+
+        Ok(())
+    }
+
+    pub async fn stats_command(&self) -> Result<()> {
+        let can_send = self
+            .app
+            .redis
+            .can_send_message("stats", self.msg.chat.id.0, self.msg.id.0);
+
+        if !can_send {
+            return Ok(());
+        }
+
+        let memes_count = self.app.database.get_memes_count(self.msg.chat.id.0);
+        let likes_count = self.app.database.get_meme_likes_count(self.msg.chat.id.0);
+        let dislikes_count = self
+            .app
+            .database
+            .get_meme_dislikes_count(self.msg.chat.id.0);
+
+        let message = include_str!("../../messages/stats.in")
+            .replace("{memes_count}", &memes_count.to_string())
+            .replace("{memes_likes}", &likes_count.to_string())
+            .replace("{memes_dislikes}", &dislikes_count.to_string());
+
+        self.bot.send_message(self.msg.chat.id, message).await?;
 
         Ok(())
     }
