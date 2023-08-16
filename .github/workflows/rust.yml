@@ -17,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Build image
+      run: docker build -t local -f Dockerfile-tests .
     - name: Set up cargo cache
       uses: actions/cache@v3
       continue-on-error: false
@@ -29,6 +31,5 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
-    - name: Check
-      run: |
-        cargo fmt --all -- --check
+    - name: Run linter
+      run: docker run --rm -v $PWD:/app -v ~/.cargo:/root/.cargo -w /app local sh -c 'cargo check --verbose && cargo fmt --all -- --check && cargo clippy -- -D warnings'
