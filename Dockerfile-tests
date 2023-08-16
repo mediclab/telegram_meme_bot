@@ -8,8 +8,9 @@ COPY --from=medic84/opencv:latest /usr/local/share/opencv4 /usr/local/share/open
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get install -y cmake build-essential clang \
-    && cargo install diesel_cli --no-default-features --features "postgres" \
-    && apt-get clean
+    && apt-get clean \
+    && rustup component add rustfmt \
+    && rustup component add clippy
 
 WORKDIR /app
 

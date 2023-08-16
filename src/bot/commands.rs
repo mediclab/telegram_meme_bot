@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::app::Application;
