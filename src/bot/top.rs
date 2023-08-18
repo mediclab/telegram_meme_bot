@@ -18,11 +18,10 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
             .await?;
 
         text = format!(
-            "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! {}",
+            "🎉 твой мем набрал {}!\nБольше всех {}!\nПоздравляю! {}",
             Utils::get_user_text(&user),
             Messages::pluralize(*likes, ("лайк", "лайка", "лайков")),
-            period_text.1,
-            emojis::get_by_shortcode("tada").unwrap().as_str()
+            period_text.1
         );
     } else {
         error!("Can't get top mem for this period!");
@@ -46,8 +45,7 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{} Мемомёт {}:\n{} отправил {} {}!\n\n",
-            emojis::get_by_shortcode("clown_face").unwrap().as_str(),
+            "🤡 Мемомёт {}:\n{} отправил {} {}!\n\n",
             period_text.0,
             Utils::get_user_text(&user),
             Messages::pluralize(count, ("мем", "мема", "мемов")),
@@ -63,8 +61,7 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
 
         if count > 4 {
             text = format!(
-                "{text}{} Хитрец {}:\n{} лайкнул свои же мемы {} {}!\n\n",
-                emojis::get_by_shortcode("smiling_imp").unwrap().as_str(),
+                "{text}😈 Хитрец {}:\n{} лайкнул свои же мемы {} {}!\n\n",
                 period_text.0,
                 Utils::get_user_text(&user),
                 Messages::pluralize(count, ("раз", "раза", "раз")),
@@ -82,8 +79,7 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{text}{} Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {}\n\n",
-            emojis::get_by_shortcode("heart").unwrap().as_str(),
+            "{text}❤️ Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {}\n\n",
             period_text.0,
             Utils::get_user_text(&user),
             period_text.1,
@@ -100,8 +96,7 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
 
         text = format!(
-            "{text}{} Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {}",
-            emojis::get_by_shortcode("rage").unwrap().as_str(),
+            "{text}😡 Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {}",
             period_text.0,
             Utils::get_user_text(&user),
             period_text.1,
@@ -128,10 +123,9 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
             .await?;
 
         text = format!(
-            "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? {}",
+            "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? 🤔",
             Utils::get_user_text(&user),
-            Messages::pluralize(*dislikes, ("дизлайк", "дизлайка", "дизлайков")),
-            emojis::get_by_shortcode("thinking").unwrap().as_str()
+            Messages::pluralize(*dislikes, ("дизлайк", "дизлайка", "дизлайков"))
         );
 
         app.bot

@@ -37,11 +37,7 @@ impl MemeMarkup {
     pub fn get_markup(&self) -> InlineKeyboardMarkup {
         InlineKeyboardMarkup::new(vec![vec![
             InlineKeyboardButton::callback(
-                format!(
-                    "{} Like ({})",
-                    emojis::get_by_shortcode("heart").unwrap().as_str(),
-                    self.likes
-                ),
+                format!("❤️ Like ({})", self.likes),
                 json!(MemeCallback {
                     uuid: self.uuid,
                     op: CallbackOperations::Like
@@ -49,11 +45,7 @@ impl MemeMarkup {
                 .to_string(),
             ),
             InlineKeyboardButton::callback(
-                format!(
-                    "{} Dislike ({})",
-                    emojis::get_by_shortcode("broken_heart").unwrap().as_str(),
-                    self.dislikes
-                ),
+                format!("💔 Dislike ({})", self.dislikes),
                 json!(MemeCallback {
                     uuid: self.uuid,
                     op: CallbackOperations::Dislike

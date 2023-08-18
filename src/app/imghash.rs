@@ -1,11 +1,13 @@
-use opencv::{
-    core::{Mat, Size},
-    imgcodecs,
-    imgcodecs::ImreadModes,
-    imgproc,
-    imgproc::InterpolationFlags,
-    prelude::*,
-};
+opencv::opencv_branch_4! {
+    use opencv::{
+        core::{Mat, Size},
+        imgcodecs,
+        imgcodecs::ImreadModes,
+        imgproc,
+        imgproc::InterpolationFlags,
+        prelude::*,
+    };
+}
 
 #[derive(Clone)]
 pub struct ImageHash {

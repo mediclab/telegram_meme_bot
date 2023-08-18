@@ -1,10 +1,10 @@
 FROM rust:latest as builder
 
-COPY --from=medic84/opencv:latest /usr/local/lib/libopencv_* /usr/local/lib/
-COPY --from=medic84/opencv:latest /usr/local/bin/opencv_* /usr/local/bin/
-COPY --from=medic84/opencv:latest /usr/local/include/opencv4 /usr/local/include/opencv4/
-COPY --from=medic84/opencv:latest /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4/
-COPY --from=medic84/opencv:latest /usr/local/share/opencv4 /usr/local/share/opencv4/
+COPY --from=medic84/opencv:4.8.0 /usr/local/lib/libopencv_* /usr/local/lib/
+COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
+COPY --from=medic84/opencv:4.8.0 /usr/local/include/opencv4 /usr/local/include/opencv4/
+COPY --from=medic84/opencv:4.8.0 /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4/
+COPY --from=medic84/opencv:4.8.0 /usr/local/share/opencv4 /usr/local/share/opencv4/
 
 RUN apt-get update \
     && apt-get install -y cmake build-essential clang \
@@ -27,8 +27,8 @@ RUN apt-get update  \
 
 COPY --from=builder /app/target/release/tg_meme_bot /usr/local/bin/tg_meme_bot
 COPY --from=builder  /usr/local/cargo/bin/diesel /usr/local/bin/diesel
-COPY --from=medic84/opencv:latest /usr/local/lib/libopencv_* /usr/local/lib/
-COPY --from=medic84/opencv:latest /usr/local/bin/opencv_* /usr/local/bin/
+COPY --from=medic84/opencv:4.8.0 /usr/local/lib/libopencv_* /usr/local/lib/
+COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
 
 WORKDIR /app
 
