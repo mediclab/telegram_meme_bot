@@ -267,14 +267,8 @@ impl MessagesHandler {
                 .reply_to_message_id(s_meme.1.unwrap().msg_id())
                 .reply_markup(
                     DeleteMarkup::new(meme.uuid)
-                        .set_ok_text(&format!(
-                            "{} Упс, действительно, было...",
-                            emojis::get_by_shortcode("wastebasket").unwrap().as_str()
-                        ))
-                        .set_none_text(&format!(
-                            "{} Это точно свежак! ",
-                            emojis::get_by_shortcode("x").unwrap().as_str()
-                        ))
+                        .set_ok_text("🗑 Упс, действительно, было...")
+                        .set_none_text("❌ Это точно свежак!")
                         .get_markup(),
                 )
                 .await?;

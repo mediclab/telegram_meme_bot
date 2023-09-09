@@ -257,14 +257,8 @@ impl CommandsHandler {
                     .reply_to_message_id(repl.id)
                     .reply_markup(
                         DeleteMarkup::new(meme.uuid)
-                            .set_ok_text(&format!(
-                                "{} Удалите, прошу прощения",
-                                emojis::get_by_shortcode("thumbsdown").unwrap().as_str()
-                            ))
-                            .set_none_text(&format!(
-                                "{} Беру на себя ответственность",
-                                emojis::get_by_shortcode("thumbsup").unwrap().as_str()
-                            ))
+                            .set_ok_text("👎 Удалите, прошу прощения")
+                            .set_none_text("👍 Беру на себя ответственность")
                             .get_markup()
                     )
                     .await?;
@@ -324,14 +318,8 @@ impl CommandsHandler {
                     .reply_to_message_id(repl.id)
                     .reply_markup(
                         DeleteMarkup::new(meme.uuid)
-                            .set_ok_text(&format!(
-                                "{} Да, я хочу удалить",
-                                emojis::get_by_shortcode("wastebasket").unwrap().as_str()
-                            ))
-                            .set_none_text(&format!(
-                                "{} Нет, я передумал(а)",
-                                emojis::get_by_shortcode("x").unwrap().as_str()
-                            ))
+                            .set_ok_text("🗑 Да, я хочу удалить")
+                            .set_none_text("❌ Нет, я передумал(а)")
                             .get_markup(),
                     )
                     .await?;
