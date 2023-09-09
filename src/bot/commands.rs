@@ -311,10 +311,7 @@ impl CommandsHandler {
                     .unwrap();
 
                 self.bot
-                    .send_message(
-                        self.msg.chat.id,
-                        String::from("Вы действительно хотите удалить мем?"),
-                    )
+                    .send_message(self.msg.chat.id, String::from("Ты хочешь удалить мем?"))
                     .reply_to_message_id(repl.id)
                     .reply_markup(
                         DeleteMarkup::new(meme.uuid)

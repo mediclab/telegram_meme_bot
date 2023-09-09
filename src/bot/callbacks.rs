@@ -115,7 +115,7 @@ impl CallbackHandler {
         if !self.can_user_interact(meme) {
             self.bot
                 .answer_callback_query(&self.callback.id)
-                .text("Только пользователь отправивший мем (или админ), может сделать это")
+                .text("Только тот, кто прислал мем (или админ), может сделать это")
                 .show_alert(true)
                 .await?;
 
@@ -138,7 +138,7 @@ impl CallbackHandler {
         if !self.can_user_interact(meme) {
             self.bot
                 .answer_callback_query(&self.callback.id)
-                .text("Только пользователь отправивший мем (или админ), может сделать это")
+                .text("Только тот, кто прислал мем (или админ), может сделать это")
                 .show_alert(true)
                 .await?;
 
@@ -155,7 +155,7 @@ impl CallbackHandler {
 
         self.bot
             .answer_callback_query(&self.callback.id)
-            .text("Удалено")
+            .text("УдОлено")
             .await?;
 
         Ok(())
@@ -172,7 +172,7 @@ impl CallbackHandler {
 
         self.bot
             .answer_callback_query(&self.callback.id)
-            .text("Спасибо за Ваше неравнодушие")
+            .text("Круто, что тебе не пофиг")
             .await?;
 
         Ok(())
