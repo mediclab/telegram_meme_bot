@@ -8,6 +8,7 @@ COPY --from=medic84/opencv:4.8.0 /usr/local/share/opencv4 /usr/local/share/openc
 
 RUN apt-get update \
     && apt-get install -y cmake build-essential clang \
+      libavcodec-dev libavformat-dev libswscale-dev libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev \
     && cargo install diesel_cli --no-default-features --features "postgres" --target-dir /usr/local/bin \
     && apt-get clean
 
