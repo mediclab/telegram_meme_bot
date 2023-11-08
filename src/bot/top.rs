@@ -1,4 +1,5 @@
 use anyhow::Result;
+
 use teloxide::prelude::*;
 
 use crate::app::utils as Utils;
@@ -8,41 +9,39 @@ use crate::database::models::MemeLikeOperation;
 
 pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<()> {
     let mut text: String;
-    let _res = app.database.get_top_meme(&period);
     let period_text = get_translations(&period);
+    let chat_id: i64;
 
-    if _res.is_ok() {
-        let (meme, likes) = _res.as_ref().unwrap();
-        let user = app
-            .get_chat_user(meme.chat_id().0, meme.user_id().0)
-            .await?;
+    match app.database.get_top_meme(&period) {
+        Ok((meme, likes)) => {
+            let user = app.get_chat_user(meme.chat_id, meme.user_id as u64).await?;
 
-        text = format!(
-            "🎉 твой мем набрал {}!\nБольше всех {}!\nПоздравляю! {}",
-            Utils::get_user_text(&user),
-            Messages::pluralize(*likes, ("лайк", "лайка", "лайков")),
-            period_text.1
-        );
-    } else {
-        error!("Can't get top mem for this period!");
+            text = format!(
+                "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! 🎉",
+                Utils::get_user_text(&user),
+                Messages::pluralize(likes, ("лайк", "лайка", "лайков")),
+                period_text.1
+            );
 
-        return Ok(());
+            app.bot
+                .send_message(meme.chat_id(), &text)
+                .reply_to_message_id(meme.msg_id())
+                .await
+                .expect("Can't send 'top of' message");
+
+            chat_id = meme.chat_id().0;
+        }
+        Err(_) => {
+            error!("Can't get top mem for this period!");
+
+            return Ok(());
+        }
     }
 
-    let (meme, _) = _res.as_ref().unwrap();
-
-    app.bot
-        .send_message(meme.chat_id(), &text)
-        .reply_to_message_id(meme.msg_id())
-        .await
-        .expect("Can't send 'top of' message");
-
     text = String::new();
-    let _res = app.database.get_top_memesender(&period);
 
-    if _res.is_ok() {
-        let (user_id, count) = _res.unwrap();
-        let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
+    if let Ok((user_id, count)) = app.database.get_top_memesender(&period) {
+        let user = app.get_chat_user(chat_id, user_id as u64).await?;
 
         text = format!(
             "🤡 Мемомёт {}:\n{} отправил {} {}!\n\n",
@@ -51,13 +50,10 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
             Messages::pluralize(count, ("мем", "мема", "мемов")),
             period_text.1
         );
-    }
+    };
 
-    let _res = app.database.get_top_selflikes(&period);
-
-    if _res.is_ok() {
-        let (user_id, count) = _res.unwrap();
-        let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
+    if let Ok((user_id, count)) = app.database.get_top_selflikes(&period) {
+        let user = app.get_chat_user(chat_id, user_id as u64).await?;
 
         if count > 4 {
             text = format!(
@@ -70,13 +66,11 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         }
     }
 
-    let _res = app
+    if let Ok((user_id, count)) = app
         .database
-        .get_top_likers(&period, MemeLikeOperation::Like);
-
-    if _res.is_ok() {
-        let (user_id, count) = _res.unwrap();
-        let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
+        .get_top_likers(&period, MemeLikeOperation::Like)
+    {
+        let user = app.get_chat_user(chat_id, user_id as u64).await?;
 
         text = format!(
             "{text}❤️ Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {}\n\n",
@@ -87,13 +81,11 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
         );
     }
 
-    let _res = app
+    if let Ok((user_id, count)) = app
         .database
-        .get_top_likers(&period, MemeLikeOperation::Dislike);
-
-    if _res.is_ok() {
-        let (user_id, count) = _res.unwrap();
-        let user = app.get_chat_user(meme.chat_id().0, user_id as u64).await?;
+        .get_top_likers(&period, MemeLikeOperation::Dislike)
+    {
+        let user = app.get_chat_user(chat_id, user_id as u64).await?;
 
         text = format!(
             "{text}😡 Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {}",
@@ -107,25 +99,24 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
     if !text.is_empty() {
         app.bot
             .send_message(
-                meme.chat_id(),
+                ChatId(chat_id),
                 format!("Хотели топов? Их есть у меня!\n\n{}", &text),
             )
             .await
             .expect("Can't send 'top of' message");
     }
 
-    let _res = app.database.get_max_disliked_meme(&period);
+    if let Ok((meme, dislikes)) = app.database.get_max_disliked_meme(&period) {
+        if period != Utils::Period::Week {
+            return Ok(());
+        }
 
-    if _res.is_ok() && period == Utils::Period::Week {
-        let (meme, dislikes) = _res.as_ref().unwrap();
-        let user = app
-            .get_chat_user(meme.chat_id().0, meme.user_id().0)
-            .await?;
+        let user = app.get_chat_user(meme.chat_id, meme.user_id as u64).await?;
 
         text = format!(
             "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? 🤔",
             Utils::get_user_text(&user),
-            Messages::pluralize(*dislikes, ("дизлайк", "дизлайка", "дизлайков"))
+            Messages::pluralize(dislikes, ("дизлайк", "дизлайка", "дизлайков"))
         );
 
         app.bot

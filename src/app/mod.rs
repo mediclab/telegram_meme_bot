@@ -52,14 +52,8 @@ impl Application {
                 }
             };
 
-            let (hash, hash_min) = match self.generate_hashes(&json[0].file.id).await {
-                Ok(res) => res,
-                Err(_) => (None, None),
-            };
-
-            if hash_min.is_some() && hash.is_some() {
-                self.database
-                    .add_meme_hashes(&meme.uuid, &hash.unwrap(), &hash_min.unwrap());
+            if let Ok((Some(hash), Some(hash_min))) = self.generate_hashes(&json[0].file.id).await {
+                self.database.add_meme_hashes(&meme.uuid, &hash, &hash_min);
 
                 info!("Updated hashes for = {}", &meme.uuid);
             } else {
