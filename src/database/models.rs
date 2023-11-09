@@ -106,16 +106,26 @@ pub struct User {
     pub created_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Debug, Insertable, AsChangeset)]
 #[diesel(table_name = UsersSchema)]
 pub struct AddUser {
     pub user_id: i64,
     pub username: Option<String>,
     pub firstname: String,
     pub lastname: Option<String>,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 impl AddUser {
+    pub fn new(user_id: i64, name: &str) -> Self {
+        Self {
+            user_id,
+            username: None,
+            firstname: name.to_string(),
+            lastname: None,
+            deleted_at: None,
+        }
+    }
     pub fn new_from_tg(user: &TgUser) -> Self {
         let u = user.clone();
 
@@ -124,6 +134,7 @@ impl AddUser {
             username: u.username,
             firstname: u.first_name,
             lastname: u.last_name,
+            deleted_at: None,
         }
     }
 }
