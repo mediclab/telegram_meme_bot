@@ -98,7 +98,7 @@ impl Application {
     pub async fn update_users(&self, chat_id: i64) -> Result<()> {
         let uids = self.database.get_users_ids_not_in_table()?;
 
-        info!("Count updating users = {}", uids.len());
+        info!("Count updating users from likes = {}", uids.len());
 
         for uid in &uids {
             info!("Sending request for user id = {uid}");
@@ -107,10 +107,14 @@ impl Application {
                 .get_chat_member(ChatId(chat_id), UserId(*uid as u64))
                 .await;
 
+            sleep(Duration::from_secs(1));
+
             let member = match res {
                 Ok(m) => m,
-                Err(e) => {
-                    error!("User not found: {e}");
+                Err(_) => {
+                    info!("Add unknown user {uid} to database");
+
+                    self.database.add_user(&AddUser::new(*uid, "Неизвестный"))?;
 
                     continue;
                 }
@@ -118,9 +122,41 @@ impl Application {
 
             info!("Add user {uid} to database ({})", member.user.full_name());
 
-            let _ = self.database.add_user(&AddUser::new_from_tg(&member.user));
+            self.database
+                .add_user(&AddUser::new_from_tg(&member.user))?;
+        }
+
+        let uids = self.database.get_all_users()?;
+
+        info!("Count updating users on deleted from chat = {}", uids.len());
+
+        for uid in &uids {
+            info!("Sending request for user id = {uid}");
+            let res = self
+                .bot
+                .get_chat_member(ChatId(chat_id), UserId(*uid as u64))
+                .await;
 
             sleep(Duration::from_secs(1));
+
+            let member = match res {
+                Ok(m) => m,
+                Err(_) => {
+                    info!("Deleting user {uid} from database");
+
+                    self.database.delete_user(*uid);
+
+                    continue;
+                }
+            };
+
+            info!(
+                "Update user {uid} in database ({})",
+                member.user.full_name()
+            );
+
+            self.database
+                .add_user(&AddUser::new_from_tg(&member.user))?;
         }
 
         Ok(())

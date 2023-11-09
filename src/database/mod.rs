@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::Utc;
 use diesel::{
     dsl,
     pg::PgConnection,
@@ -241,7 +241,7 @@ impl DBManager {
             .values(user)
             .on_conflict(UsersSchema::dsl::user_id)
             .do_update()
-            .set(UsersSchema::dsl::deleted_at.eq(None as Option<NaiveDateTime>))
+            .set(user)
             .get_result(&mut *self.get_connection())
     }
 
@@ -271,6 +271,13 @@ impl DBManager {
     pub fn get_users_ids_not_in_table(&self) -> Result<Vec<i64>, Error> {
         dsl::sql::<BigInt>("(SELECT DISTINCT user_id FROM memes UNION SELECT DISTINCT user_id FROM meme_likes) EXCEPT SELECT user_id FROM users")
             .load::<i64>(&mut *self.get_connection())
+    }
+
+    pub fn get_all_users(&self) -> Result<Vec<i64>, Error> {
+        UsersSchema::table
+            .filter(UsersSchema::dsl::deleted_at.is_null())
+            .select(UsersSchema::dsl::user_id)
+            .load(&mut *self.get_connection())
     }
 
     pub fn get_max_disliked_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
