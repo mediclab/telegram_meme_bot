@@ -294,7 +294,7 @@ impl DBManager {
                 dsl::sql::<BigInt>("ABS(SUM(\"meme_likes\".\"num\")) as sum"),
             ))
             .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") < -5"))
-            .order_by(dsl::sql::<BigInt>("sum ASC"))
+            .order_by(dsl::sql::<BigInt>("sum DESC"))
             .first(&mut *self.get_connection())
     }
 

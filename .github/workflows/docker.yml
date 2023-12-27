@@ -12,26 +12,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Set version from Cargo.toml
+      - uses: actions/checkout@v4
+
+      - name: Get version from Cargo.toml
         run: |
-          echo "app_version=$(cat Cargo.toml | grep -A3 '^\[package\]$' | grep -Po '(?<=^version = ")[^"]*(?=".*)' | tr -dc 0-9)"  >> $GITHUB_ENV
+          echo "app_version=$(cat Cargo.toml | grep -A3 '^\[package\]$' | grep -Po '(?<=^version = ")[^"]*(?=".*)')" >> $GITHUB_ENV
+
+      - name: Set versions to env
+        run: |
+          echo "check_version=$(echo ${{ env.app_version }} | tr -dc 0-9)"  >> $GITHUB_ENV
           echo "tag_version=$(echo ${{ github.event.release.tag_name }} | tr -dc 0-9)" >> $GITHUB_ENV
+
       - name: Check versions
-        if: ${{ env.tag_version != env.app_version }}
+        if: ${{ env.tag_version != env.check_version }}
         run: |
-          echo "::error::Tag version = ${{ env.tag_version }} is not equals version from Cargo.toml = ${{ env.app_version }}"
+          echo "::error::Tag version = ${{ env.tag_version }} is not equals version from Cargo.toml = ${{ env.check_version }}"
           exit 1
-      - name: Build the Docker image
-        env:
-          HOST: ${{ secrets.DOCKER_HOME_HOST }}
-        run: |
-          docker build . --file Dockerfile-prod --tag $HOST/mediclab/tg_meme_bot:${{ github.event.release.tag_name }} --tag $HOST/mediclab/tg_meme_bot:latest
-      - name: Push image to Private Docker
-        env:
-          DOCKER_PASSWD: ${{ secrets.DOCKER_HOME_PASSWORD }}
-          DOCKER_LOGIN: ${{ secrets.DOCKER_HOME_LOGIN }}
-          HOST: ${{ secrets.DOCKER_HOME_HOST }}
-        run: |
-          echo "$DOCKER_PASSWD" | docker login --username "$DOCKER_LOGIN" --password-stdin $HOST
-          docker push -a $HOST/mediclab/tg_meme_bot
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Login to Private Docker
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_HOME_HOST }}
+          username: ${{ secrets.DOCKER_HOME_LOGIN }}
+          password: ${{ secrets.DOCKER_HOME_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          file: ./Dockerfile-prod
+          build-args: "BOT_VERSION=${{ env.app_version }}"
+          push: true
+          tags: "${{ secrets.DOCKER_HOME_HOST }}/mediclab/tg_meme_bot:latest,${{ secrets.DOCKER_HOME_HOST }}/mediclab/tg_meme_bot:${{ env.app_version }}"
+          platforms: linux/amd64,linux/arm64

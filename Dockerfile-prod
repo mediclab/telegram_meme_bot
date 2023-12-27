@@ -21,6 +21,13 @@ RUN cargo build --release
 
 FROM debian:bullseye-slim
 
+ARG BOT_VERSION=unknown
+
+MAINTAINER "mediclab"
+LABEL org.opencontainers.image.authors="mediclab <m@mdlb.cc>"
+LABEL version=$BOT_VERSION
+LABEL description="Bot for mem-chats"
+
 RUN apt-get update  \
     && apt-get install -y ca-certificates libpq5 libjpeg-dev libpng-dev libopenjp2-7 \
       libtbb2 libtiff5 libwebp6 libopenexr25 libgtk2.0-0 \
