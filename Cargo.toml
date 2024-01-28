@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.9.6"
+version = "0.9.7"
 edition = "2021"
 
 [profile.docker]
@@ -41,3 +41,4 @@ anyhow = "1.0"
 itertools = "0.11.0"
 diesel-async = { version = "0.3.2", features = ["postgres", "deadpool"] }
 once_cell = "1.18.0"
+sentry = "0.32.1"

@@ -164,14 +164,11 @@ impl MessagesHandler {
         let user_text = Utils::get_user_text(user);
 
         let hash_result = self.app.generate_hashes(&photos[0].file.id).await;
-        let (hash, hash_min) = match hash_result {
-            Ok(res) => res,
-            Err(e) => {
-                warn!("Can't generate hashes. Error: {e}");
+        let (hash, hash_min) = hash_result.unwrap_or_else(|e| {
+            warn!("Can't generate hashes. Error: {e}");
 
-                (None, None)
-            }
-        };
+            (None, None)
+        });
         let mut s_meme: (i64, Option<Meme>) = (0, None);
 
         if hash.is_some() && hash_min.is_some() {
