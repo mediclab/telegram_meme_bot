@@ -172,7 +172,6 @@ impl CommandsHandler {
                 //     })))
                 //     .await?;
             }
-            _ => {}
         }
 
         Ok(())
