@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.DOCKER_HOME_PASSWORD }}
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           file: ./Dockerfile-prod
           build-args: "BOT_VERSION=${{ env.app_version }}"
