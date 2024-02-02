@@ -198,6 +198,19 @@ impl Application {
         Ok(member.expect("Can't get chat member").user)
     }
 
+    pub async fn check_version(&self, chat_id: i64) -> Result<()> {
+        if let Some(redis_version) = self.redis.get_app_version() {
+            if redis_version != self.version {
+                self.bot
+                    .send_message(ChatId(chat_id), "😌 Я обновилься!")
+                    .await?;
+            }
+        }
+
+        self.redis.set_app_version(&self.version);
+        Ok(())
+    }
+
     fn get_env(env: &'static str) -> String {
         env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
     }

@@ -12,6 +12,27 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
     let period_text = get_translations(&period);
     let chat_id: i64;
 
+    match period {
+        Utils::Period::Week => {
+            if !Utils::Period::is_today_a_friday() {
+                debug!("Today is not a Friday!");
+                return Ok(());
+            }
+        }
+        Utils::Period::Month => {
+            if !Utils::Period::is_today_a_last_month_day() {
+                debug!("Today is not a Last Month Day!");
+                return Ok(());
+            }
+        }
+        Utils::Period::Year => {
+            if !Utils::Period::is_today_a_last_year_day() {
+                debug!("Today is not a Last Year Day!");
+                return Ok(());
+            }
+        }
+    }
+
     match app.database.get_top_meme(&period) {
         Ok((meme, likes)) => {
             let user = app.get_chat_user(meme.chat_id, meme.user_id as u64).await?;

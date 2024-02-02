@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use teloxide::types::ForwardedFrom;
+use teloxide::types::{ChatMemberKind, ForwardedFrom};
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, PhotoSize, Video},
@@ -25,11 +25,11 @@ impl MessagesHandler {
             MessageKind::Common(_) => {
                 handler.common().await?;
             }
-            MessageKind::NewChatMembers(_) => {
-                handler.newbie().await?;
-            }
-            MessageKind::LeftChatMember(_) => {
-                handler.left().await?;
+            MessageKind::NewChatMembers(_) | MessageKind::LeftChatMember(_) => {
+                handler
+                    .bot
+                    .delete_message(handler.msg.chat.id, handler.msg.id)
+                    .await?;
             }
             _ => {}
         };
@@ -57,6 +57,41 @@ impl MessagesHandler {
             let chat_admins = handler.app.redis.get_chat_admins(chat.id.0);
 
             if chat_admins.contains(&handler.msg.from().unwrap().id.0) {}
+        }
+
+        Ok(())
+    }
+
+    pub async fn chat_member_handle(cm: ChatMemberUpdated, app: Arc<Application>) -> Result<()> {
+        let member = cm.new_chat_member;
+        match member.kind {
+            ChatMemberKind::Member => {
+                let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
+                app.bot
+                    .send_message(
+                        cm.chat.id,
+                        messages
+                            .random()
+                            .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                    )
+                    .await?;
+
+                let _ = app.database.add_user(&AddUser::new_from_tg(&member.user));
+            }
+            ChatMemberKind::Left | ChatMemberKind::Banned(_) => {
+                let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
+                app.bot
+                    .send_message(
+                        cm.chat.id,
+                        messages
+                            .random()
+                            .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                    )
+                    .await?;
+
+                app.database.delete_user(member.user.id.0 as i64);
+            }
+            _ => {}
         }
 
         Ok(())
@@ -100,61 +135,6 @@ impl MessagesHandler {
                 self.video_handle(video).await?
             }
         }
-
-        Ok(())
-    }
-
-    pub async fn newbie(&self) -> Result<()> {
-        let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
-
-        self.bot
-            .delete_message(self.msg.chat.id, self.msg.id)
-            .await?;
-
-        let users = self
-            .msg
-            .new_chat_members()
-            .expect("New chat members not found!");
-
-        let users_names = users
-            .iter()
-            .map(Utils::get_user_text)
-            .collect::<Vec<String>>()
-            .join(", ");
-
-        self.bot
-            .send_message(
-                self.msg.chat.id,
-                messages.random().replace("{user_name}", &users_names),
-            )
-            .await?;
-
-        users.iter().for_each(|user| {
-            let _ = self.app.database.add_user(&AddUser::new_from_tg(user));
-        });
-
-        Ok(())
-    }
-
-    pub async fn left(&self) -> Result<()> {
-        let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
-
-        self.bot
-            .delete_message(self.msg.chat.id, self.msg.id)
-            .await?;
-
-        let user = self.msg.left_chat_member().expect("Left users not found!");
-
-        self.bot
-            .send_message(
-                self.msg.chat.id,
-                messages
-                    .random()
-                    .replace("{user_name}", &Utils::get_user_text(user)),
-            )
-            .await?;
-
-        self.app.database.delete_user(user.id.0 as i64);
 
         Ok(())
     }
