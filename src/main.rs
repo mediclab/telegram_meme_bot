@@ -3,11 +3,16 @@ extern crate dotenv;
 extern crate log;
 extern crate pretty_env_logger;
 
+use std::time::Duration;
 use std::{env, sync::Arc};
 
 use clap::Parser;
 use dotenv::dotenv;
 use teloxide::prelude::*;
+
+use clokwerk::{Interval::*, Job, Scheduler, TimeUnits};
+use futures::executor::block_on;
+use teloxide::types::Chat;
 
 use crate::app::Application;
 use app::utils::Period;
@@ -69,6 +74,7 @@ async fn main() {
 
     if chat_id_only < 0 {
         app.register_chat(chat_id_only).await;
+        app.check_version(chat_id_only).await.unwrap_or_default();
     }
 
     match args.command {
@@ -108,8 +114,15 @@ async fn main() {
                         .endpoint(CommandsHandler::private_handle),
                 )
                 .branch(
+                    Update::filter_chat_member()
+                        .filter(move |cm: ChatMemberUpdated| {
+                            filter_messages(&cm.chat, &chat_id_only)
+                        })
+                        .endpoint(MessagesHandler::chat_member_handle),
+                )
+                .branch(
                     Update::filter_message()
-                        .filter(move |m: Message| filter_messages(&m, &chat_id_only))
+                        .filter(move |m: Message| filter_messages(&m.chat, &chat_id_only))
                         .filter_command::<PublicCommand>()
                         .endpoint(CommandsHandler::public_handle),
                 )
@@ -120,10 +133,40 @@ async fn main() {
                 )
                 .branch(
                     Update::filter_message()
-                        .filter(move |m: Message| filter_messages(&m, &chat_id_only))
+                        .filter(move |m: Message| filter_messages(&m.chat, &chat_id_only))
                         .endpoint(MessagesHandler::public_handle),
                 )
                 .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
+
+            info!("Starting scheduler...");
+            // Create a new scheduler
+            let mut scheduler = Scheduler::with_tz(chrono::Utc);
+
+            scheduler.every(Friday).at("16:05").once().run({
+                let scheduler_app = app.clone();
+                move || {
+                    block_on(bot::top::send_top_stats(&scheduler_app, Period::Week))
+                        .expect("Can't send meme of week");
+                }
+            });
+
+            scheduler.every(1.day()).at("17:05").once().run({
+                let scheduler_app = app.clone();
+                move || {
+                    block_on(bot::top::send_top_stats(&scheduler_app, Period::Month))
+                        .expect("Can't send meme of month");
+                }
+            });
+
+            scheduler.every(1.day()).at("18:05").once().run({
+                let scheduler_app = app.clone();
+                move || {
+                    block_on(bot::top::send_top_stats(&scheduler_app, Period::Year))
+                        .expect("Can't send meme of year");
+                }
+            });
+
+            let scheduler_handle = scheduler.watch_thread(Duration::from_millis(100));
 
             info!("Starting dispatch...");
 
@@ -133,14 +176,20 @@ async fn main() {
                 .build()
                 .dispatch()
                 .await;
+
+            info!("Dispatch stopped...");
+
+            scheduler_handle.stop();
+
+            info!("Scheduler stopped...");
         }
     };
 }
 
-fn filter_messages(m: &Message, chat_id: &i64) -> bool {
+fn filter_messages(ch: &Chat, chat_id: &i64) -> bool {
     if *chat_id < 0 {
-        (m.chat.is_group() || m.chat.is_supergroup()) && m.chat.id.0 == *chat_id
+        (ch.is_group() || ch.is_supergroup()) && ch.id.0 == *chat_id
     } else {
-        m.chat.is_group() || m.chat.is_supergroup()
+        ch.is_group() || ch.is_supergroup()
     }
 }

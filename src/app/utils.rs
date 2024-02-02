@@ -83,6 +83,20 @@ impl Period {
         }
     }
 
+    pub fn is_today_a_friday() -> bool {
+        chrono::Weekday::Fri == Utc::now().weekday()
+    }
+
+    pub fn is_today_a_last_month_day() -> bool {
+        Utc::now().end_of_month().day() == Utc::now().day()
+    }
+
+    pub fn is_today_a_last_year_day() -> bool {
+        let now = Utc::now();
+
+        now.end_of_year().month() == now.month() && now.end_of_year().day() == now.day()
+    }
+
     fn week_dates() -> (DateTime<Utc>, DateTime<Utc>) {
         let start_week = Utc::now()
             .beginning_of_week()

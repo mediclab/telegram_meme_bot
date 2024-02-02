@@ -58,6 +58,16 @@ impl RedisManager {
         serde_json::from_str::<Vec<u64>>(&json.unwrap()).unwrap_or_default()
     }
 
+    pub fn get_app_version(&self) -> Option<String> {
+        self.get_connection().get("app_version").unwrap_or(None)
+    }
+
+    pub fn set_app_version(&self, version: &str) {
+        self.get_connection()
+            .set("app_version", version)
+            .expect("Can't set app version")
+    }
+
     fn get_connection(&self) -> Connection {
         self.client.get_connection().expect("Can't get connection")
     }
