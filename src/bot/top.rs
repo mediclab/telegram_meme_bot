@@ -12,6 +12,12 @@ pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<
     let period_text = get_translations(&period);
     let chat_id: i64;
 
+    debug!(
+        "Selected period from: {} to: {}",
+        period.dates().0,
+        period.dates().1
+    );
+
     match period {
         Utils::Period::Week => {
             if !Utils::Period::is_today_a_friday() {

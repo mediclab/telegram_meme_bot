@@ -125,7 +125,7 @@ impl CommandsHandler {
                     "{}\n\n{}\nВерсия бота: {}",
                     PublicCommand::descriptions(),
                     include_str!("../../messages/help_text_addition.in"),
-                    self.app.version
+                    self.app.config.app_version
                 ),
             )
             .await?;
@@ -140,7 +140,7 @@ impl CommandsHandler {
                 format!(
                     "{}\n\nВерсия бота: {}",
                     PrivateCommand::descriptions(),
-                    self.app.version
+                    self.app.config.app_version
                 ),
             )
             .await?;

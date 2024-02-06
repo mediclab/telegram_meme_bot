@@ -1,17 +1,14 @@
-use std::{env, thread::sleep, time::Duration};
-
 use anyhow::{anyhow, Result};
+use envconfig::Envconfig;
+use futures::executor::block_on;
 use imghash::ImageHash;
-use teloxide::{
-    net::Download,
-    prelude::*,
-    types::{ParseMode, PhotoSize, User},
-};
+use std::{thread::sleep, time::Duration};
+use teloxide::{net::Download, prelude::*, types::User};
 use tokio::fs::File;
 use utils::from_binary_to_hex;
 
-use crate::bot;
-use crate::database::models::AddUser;
+use crate::bot::Bot;
+use crate::bot::BotManager;
 use crate::database::DBManager;
 use crate::redis::RedisManager;
 
@@ -21,49 +18,43 @@ pub mod utils;
 pub struct Application {
     pub database: DBManager,
     pub redis: RedisManager,
-    pub bot: bot::Bot,
-    pub version: String,
+    pub bot_manager: BotManager,
+    pub bot: Bot,
+    pub config: Config,
+}
+
+#[derive(Envconfig)]
+pub struct Config {
+    #[envconfig(from = "CARGO_PKG_VERSION", default = "unknown")]
+    pub app_version: String,
+    #[envconfig(from = "BOT_TOKEN")]
+    pub bot_token: String,
+    #[envconfig(from = "DATABASE_URL")]
+    pub db_url: String,
+    #[envconfig(from = "REDIS_URL")]
+    pub redis_url: String,
+    #[envconfig(from = "CHAT_ID")]
+    pub chat_id: i64,
 }
 
 impl Application {
     pub fn new() -> Self {
-        Self {
-            database: DBManager::connect(&Application::get_env("DATABASE_URL")),
-            redis: RedisManager::connect(&Application::get_env("REDIS_URL")),
-            bot: Bot::from_env().parse_mode(ParseMode::Html),
-            version: option_env!("CARGO_PKG_VERSION")
-                .unwrap_or("unknown")
-                .to_string(),
-        }
-    }
+        let config = Config::init_from_env().expect("Can't load config from environment");
+        let bot_manager = BotManager::new(&config.bot_token);
+        let bot = bot_manager.bot.clone();
 
-    pub async fn update_hashes(&self) -> Result<()> {
-        let memes = self.database.get_memes_without_hashes()?;
+        let app = Self {
+            database: DBManager::connect(&config.db_url),
+            redis: RedisManager::connect(&config.redis_url),
+            bot_manager,
+            bot,
+            config,
+        };
 
-        info!("Count updating memes hashes = {}", memes.len());
+        app.register_chat();
+        app.check_version();
 
-        for meme in &memes {
-            info!("Start updating hashes for = {}", &meme.uuid);
-            let json: Vec<PhotoSize> = match serde_json::from_value(meme.photos.clone().unwrap()) {
-                Ok(res) => res,
-                Err(_) => {
-                    error!("Can't deserialize photos of meme = {}", &meme.uuid);
-                    continue;
-                }
-            };
-
-            if let Ok((Some(hash), Some(hash_min))) = self.generate_hashes(&json[0].file.id).await {
-                self.database.add_meme_hashes(&meme.uuid, &hash, &hash_min);
-
-                info!("Updated hashes for = {}", &meme.uuid);
-            } else {
-                error!("Failed to update hashes for = {}", &meme.uuid);
-            }
-
-            sleep(Duration::from_secs(1));
-        }
-
-        Ok(())
+        app
     }
 
     pub async fn generate_hashes(
@@ -95,86 +86,6 @@ impl Application {
         ))
     }
 
-    pub async fn update_users(&self, chat_id: i64) -> Result<()> {
-        let uids = self.database.get_users_ids_not_in_table()?;
-
-        info!("Count updating users from likes = {}", uids.len());
-
-        for uid in &uids {
-            info!("Sending request for user id = {uid}");
-            let res = self
-                .bot
-                .get_chat_member(ChatId(chat_id), UserId(*uid as u64))
-                .await;
-
-            sleep(Duration::from_secs(1));
-
-            let member = match res {
-                Ok(m) => m,
-                Err(_) => {
-                    info!("Add unknown user {uid} to database");
-
-                    self.database.add_user(&AddUser::new(*uid, "Неизвестный"))?;
-
-                    continue;
-                }
-            };
-
-            info!("Add user {uid} to database ({})", member.user.full_name());
-
-            self.database
-                .add_user(&AddUser::new_from_tg(&member.user))?;
-        }
-
-        let uids = self.database.get_all_users()?;
-
-        info!("Count updating users on deleted from chat = {}", uids.len());
-
-        for uid in &uids {
-            info!("Sending request for user id = {uid}");
-            let res = self
-                .bot
-                .get_chat_member(ChatId(chat_id), UserId(*uid as u64))
-                .await;
-
-            sleep(Duration::from_secs(1));
-
-            let member = match res {
-                Ok(m) => m,
-                Err(_) => {
-                    info!("Deleting user {uid} from database");
-
-                    self.database.delete_user(*uid);
-
-                    continue;
-                }
-            };
-
-            info!(
-                "Update user {uid} in database ({})",
-                member.user.full_name()
-            );
-
-            self.database
-                .add_user(&AddUser::new_from_tg(&member.user))?;
-        }
-
-        Ok(())
-    }
-
-    pub async fn register_chat(&self, chat_id: i64) -> bool {
-        let admins = self.get_chat_admins(chat_id).await;
-
-        self.redis.register_chat(chat_id);
-        self.redis.set_chat_admins(chat_id, &admins);
-
-        admins.into_iter().for_each(|admin| {
-            self.database.add_chat_admin(chat_id, admin);
-        });
-
-        true
-    }
-
     pub async fn get_chat_admins(&self, chat_id: i64) -> Vec<u64> {
         let admins = self.bot.get_chat_administrators(ChatId(chat_id)).await;
 
@@ -198,20 +109,32 @@ impl Application {
         Ok(member.expect("Can't get chat member").user)
     }
 
-    pub async fn check_version(&self, chat_id: i64) -> Result<()> {
+    fn check_version(&self) {
+        let chat_id = self.config.chat_id;
         if let Some(redis_version) = self.redis.get_app_version() {
-            if redis_version != self.version {
-                self.bot
-                    .send_message(ChatId(chat_id), "😌 Я обновилься!")
-                    .await?;
+            if redis_version != self.config.app_version {
+                block_on(
+                    self.bot
+                        .send_message(ChatId(chat_id), "😌 Я обновилься!")
+                        .send(),
+                )
+                .expect("Can't send message");
             }
         }
 
-        self.redis.set_app_version(&self.version);
-        Ok(())
+        self.redis.set_app_version(&self.config.app_version);
     }
+    fn register_chat(&self) -> bool {
+        let chat_id = self.config.chat_id;
+        let admins = block_on(self.get_chat_admins(chat_id));
 
-    fn get_env(env: &'static str) -> String {
-        env::var(env).unwrap_or_else(|_| panic!("{env} must be set"))
+        self.redis.register_chat(chat_id);
+        self.redis.set_chat_admins(chat_id, &admins);
+
+        admins.into_iter().for_each(|admin| {
+            self.database.add_chat_admin(chat_id, admin);
+        });
+
+        true
     }
 }
