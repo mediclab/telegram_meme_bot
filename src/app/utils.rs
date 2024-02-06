@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Days, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, Duration, TimeZone, Timelike, Utc, Weekday};
 use itertools::Itertools;
 use now::DateTimeNow;
 use rand::seq::SliceRandom;
@@ -77,18 +77,26 @@ pub enum Period {
 impl Period {
     pub fn dates(&self) -> (DateTime<Utc>, DateTime<Utc>) {
         match *self {
-            Period::Week => Period::week_dates(),
-            Period::Month => Period::month_dates(),
-            Period::Year => Period::year_dates(),
+            Period::Week => self.week_dates(),
+            Period::Month => self.month_dates(),
+            Period::Year => self.year_dates(),
         }
     }
 
     pub fn is_today_a_friday() -> bool {
-        chrono::Weekday::Fri == Utc::now().weekday()
+        Weekday::Fri == Utc::now().weekday()
     }
 
     pub fn is_today_a_last_month_day() -> bool {
-        Utc::now().end_of_month().day() == Utc::now().day()
+        let now = Utc::now();
+
+        if (now.month() != (now + Duration::days(3)).month()) && Period::is_today_a_friday() {
+            return true;
+        }
+
+        (now.end_of_month().day() == now.day())
+            && (Weekday::Sun != now.weekday())
+            && (Weekday::Sat != now.weekday())
     }
 
     pub fn is_today_a_last_year_day() -> bool {
@@ -97,118 +105,51 @@ impl Period {
         now.end_of_year().month() == now.month() && now.end_of_year().day() == now.day()
     }
 
-    fn week_dates() -> (DateTime<Utc>, DateTime<Utc>) {
-        let start_week = Utc::now()
-            .beginning_of_week()
-            .checked_sub_days(Days::new(3))
-            .unwrap();
-
-        let start = Utc
-            .with_ymd_and_hms(
-                start_week.year(),
-                start_week.month(),
-                start_week.day(),
-                16,
-                0,
-                0,
-            )
-            .unwrap();
-
-        let end_week = Utc::now()
-            .end_of_week()
-            .checked_sub_days(Days::new(2))
-            .unwrap();
-
-        let end = Utc
-            .with_ymd_and_hms(
-                end_week.year(),
-                end_week.month(),
-                end_week.day(),
-                15,
-                59,
-                59,
-            )
-            .unwrap()
-            .with_nanosecond(999999);
-
-        (start, end.unwrap())
+    fn from(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> (DateTime<Utc>, DateTime<Utc>) {
+        (
+            Utc.with_ymd_and_hms(start.year(), start.month(), start.day(), 16, 0, 0)
+                .unwrap(),
+            Utc.with_ymd_and_hms(end.year(), end.month(), end.day(), 15, 59, 59)
+                .unwrap()
+                .with_nanosecond(999999999)
+                .unwrap(),
+        )
     }
 
-    fn month_dates() -> (DateTime<Utc>, DateTime<Utc>) {
-        let start_month = Period::get_first_work_day(&Utc::now().beginning_of_month());
+    fn week_dates(&self) -> (DateTime<Utc>, DateTime<Utc>) {
+        let start_week = Utc::now().beginning_of_week() + Duration::days(-3);
+        let end_week = Utc::now().end_of_week() + Duration::days(-2);
 
-        let start = Utc
-            .with_ymd_and_hms(
-                start_month.year(),
-                start_month.month(),
-                start_month.day(),
-                16,
-                0,
-                0,
-            )
-            .unwrap();
-
-        let end_month = Period::get_last_work_day(&Utc::now().end_of_month());
-
-        let end = Utc
-            .with_ymd_and_hms(
-                end_month.year(),
-                end_month.month(),
-                end_month.day(),
-                15,
-                59,
-                59,
-            )
-            .unwrap()
-            .with_nanosecond(999999);
-
-        (start, end.unwrap())
+        self.from(start_week, end_week)
     }
 
-    fn year_dates() -> (DateTime<Utc>, DateTime<Utc>) {
-        let start_month = Period::get_first_work_day(&Utc::now().beginning_of_year());
+    fn month_dates(&self) -> (DateTime<Utc>, DateTime<Utc>) {
+        let start_month = self.get_first_work_day(&Utc::now().beginning_of_month());
+        let end_month = self.get_last_work_day(&Utc::now().end_of_month());
 
-        let start = Utc
-            .with_ymd_and_hms(
-                start_month.year(),
-                start_month.month(),
-                start_month.day(),
-                16,
-                0,
-                0,
-            )
-            .unwrap();
-
-        let end_month = Period::get_last_work_day(&Utc::now().end_of_year());
-
-        let end = Utc
-            .with_ymd_and_hms(
-                end_month.year(),
-                end_month.month(),
-                end_month.day(),
-                15,
-                59,
-                59,
-            )
-            .unwrap()
-            .with_nanosecond(999999);
-
-        (start, end.unwrap())
+        self.from(start_month, end_month)
     }
 
-    fn get_last_work_day(date: &DateTime<Utc>) -> DateTime<Utc> {
-        match date.weekday().number_from_monday() {
-            6 => date.checked_sub_days(Days::new(1)).unwrap(),
-            7 => date.checked_sub_days(Days::new(2)).unwrap(),
+    fn year_dates(&self) -> (DateTime<Utc>, DateTime<Utc>) {
+        let start_year = self.get_first_work_day(&Utc::now().beginning_of_year());
+        let end_year = self.get_last_work_day(&Utc::now().end_of_year());
+
+        self.from(start_year, end_year)
+    }
+
+    fn get_last_work_day(&self, date: &DateTime<Utc>) -> DateTime<Utc> {
+        match date.weekday() {
+            Weekday::Sat => *date + Duration::days(-1),
+            Weekday::Sun => *date + Duration::days(-2),
             _ => *date,
         }
     }
 
-    fn get_first_work_day(date: &DateTime<Utc>) -> DateTime<Utc> {
-        match date.weekday().number_from_monday() {
-            6 => date.checked_sub_days(Days::new(1)).unwrap(),
-            7 => date.checked_sub_days(Days::new(2)).unwrap(),
-            1 => date.checked_sub_days(Days::new(3)).unwrap(),
+    fn get_first_work_day(&self, date: &DateTime<Utc>) -> DateTime<Utc> {
+        match date.weekday() {
+            Weekday::Sat => *date + Duration::days(-1),
+            Weekday::Sun => *date + Duration::days(-2),
+            Weekday::Mon => *date + Duration::days(-3),
             _ => *date,
         }
     }

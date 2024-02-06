@@ -54,18 +54,6 @@ impl DBManager {
             .get_result(&mut *self.get_connection())
     }
 
-    pub fn add_meme_hashes(&self, uuid: &Uuid, long_hash: &str, short_hash: &str) -> bool {
-        diesel::update(MemesSchema::table)
-            .filter(MemesSchema::dsl::uuid.eq(uuid))
-            .set((
-                MemesSchema::dsl::long_hash.eq(long_hash),
-                MemesSchema::dsl::short_hash.eq(short_hash),
-                MemesSchema::dsl::updated_at.eq(Utc::now().naive_utc()),
-            ))
-            .execute(&mut *self.get_connection())
-            .is_ok()
-    }
-
     pub fn replace_meme_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
         diesel::update(MemesSchema::table)
             .filter(MemesSchema::dsl::uuid.eq(uuid))
@@ -257,27 +245,6 @@ impl DBManager {
         diesel::insert_into(ChatsSchema::table)
             .values(chat)
             .get_result(&mut *self.get_connection())
-    }
-
-    pub fn get_memes_without_hashes(&self) -> Result<Vec<Meme>, Error> {
-        MemesSchema::table
-            .filter(dsl::sql::<Bool>("NOT photos ? 'thumb'"))
-            .filter(MemesSchema::dsl::short_hash.is_null())
-            .order_by(dsl::sql::<BigInt>("posted_at DESC"))
-            .limit(50)
-            .load(&mut *self.get_connection())
-    }
-
-    pub fn get_users_ids_not_in_table(&self) -> Result<Vec<i64>, Error> {
-        dsl::sql::<BigInt>("(SELECT DISTINCT user_id FROM memes UNION SELECT DISTINCT user_id FROM meme_likes) EXCEPT SELECT user_id FROM users")
-            .load::<i64>(&mut *self.get_connection())
-    }
-
-    pub fn get_all_users(&self) -> Result<Vec<i64>, Error> {
-        UsersSchema::table
-            .filter(UsersSchema::dsl::deleted_at.is_null())
-            .select(UsersSchema::dsl::user_id)
-            .load(&mut *self.get_connection())
     }
 
     pub fn get_max_disliked_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
