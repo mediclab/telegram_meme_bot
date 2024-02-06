@@ -1,11 +1,7 @@
-use anyhow::Result;
-
-use teloxide::prelude::*;
-
-use crate::app::utils as Utils;
-use crate::app::utils::Messages;
-use crate::app::Application;
+use crate::app::{utils as Utils, utils::Messages, Application};
 use crate::database::models::MemeLikeOperation;
+use anyhow::Result;
+use teloxide::prelude::*;
 
 pub async fn send_top_stats(app: &Application, period: Utils::Period) -> Result<()> {
     let mut text: String;
