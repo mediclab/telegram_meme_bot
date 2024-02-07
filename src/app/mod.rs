@@ -7,8 +7,7 @@ use teloxide::{net::Download, prelude::*, types::User};
 use tokio::fs::File;
 use utils::from_binary_to_hex;
 
-use crate::bot::Bot;
-use crate::bot::BotManager;
+use crate::bot::{Bot, BotManager};
 use crate::database::DBManager;
 use crate::redis::RedisManager;
 
@@ -25,7 +24,7 @@ pub struct Application {
 
 #[derive(Envconfig)]
 pub struct Config {
-    #[envconfig(from = "CARGO_PKG_VERSION", default = "unknown")]
+    #[envconfig(from = "BOT_VERSION", default = "unknown")]
     pub app_version: String,
     #[envconfig(from = "BOT_TOKEN")]
     pub bot_token: String,
