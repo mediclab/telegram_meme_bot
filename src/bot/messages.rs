@@ -26,10 +26,7 @@ impl MessagesHandler {
                 handler.common().await?;
             }
             MessageKind::NewChatMembers(_) | MessageKind::LeftChatMember(_) => {
-                handler
-                    .bot
-                    .delete_message(handler.msg.chat.id, handler.msg.id)
-                    .await?;
+                handler.bot.delete_message(handler.msg.chat.id, handler.msg.id).await?;
             }
             _ => {}
         };
@@ -62,32 +59,30 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn chat_member_handle(cm: ChatMemberUpdated, app: Arc<Application>) -> Result<()> {
+    pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated, app: Arc<Application>) -> Result<()> {
         let member = cm.new_chat_member;
         match member.kind {
             ChatMemberKind::Member => {
                 let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
-                app.bot
-                    .send_message(
-                        cm.chat.id,
-                        messages
-                            .random()
-                            .replace("{user_name}", &Utils::get_user_text(&member.user)),
-                    )
-                    .await?;
+                bot.send_message(
+                    cm.chat.id,
+                    messages
+                        .random()
+                        .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                )
+                .await?;
 
                 let _ = app.database.add_user(&AddUser::new_from_tg(&member.user));
             }
             ChatMemberKind::Left | ChatMemberKind::Banned(_) => {
                 let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
-                app.bot
-                    .send_message(
-                        cm.chat.id,
-                        messages
-                            .random()
-                            .replace("{user_name}", &Utils::get_user_text(&member.user)),
-                    )
-                    .await?;
+                bot.send_message(
+                    cm.chat.id,
+                    messages
+                        .random()
+                        .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                )
+                .await?;
 
                 app.database.delete_user(member.user.id.0 as i64);
             }
@@ -104,13 +99,7 @@ impl MessagesHandler {
         }
 
         // If caption contains "nomeme" - nothing to do.
-        if self
-            .msg
-            .caption()
-            .unwrap_or("")
-            .to_lowercase()
-            .contains("nomem")
-        {
+        if self.msg.caption().unwrap_or("").to_lowercase().contains("nomem") {
             return Ok(());
         }
 
@@ -153,11 +142,7 @@ impl MessagesHandler {
 
         if hash.is_some() && hash_min.is_some() {
             let hash_min = hash_min.clone().unwrap();
-            let similar_memes = self
-                .app
-                .database
-                .get_memes_by_short_hash(&hash_min)
-                .unwrap_or_default();
+            let similar_memes = self.app.database.get_memes_by_short_hash(&hash_min).unwrap_or_default();
 
             similar_memes.into_iter().for_each(|meme| {
                 let hash = hash.clone().unwrap();
@@ -180,20 +165,14 @@ impl MessagesHandler {
             });
         }
 
-        self.bot
-            .delete_message(self.msg.chat.id, self.msg.id)
-            .await?;
+        self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
 
         if s_meme.0 == 100 {
             let meme = s_meme.1.unwrap();
-            let messages =
-                Utils::Messages::load(include_str!("../../messages/meme_already_exists.in"));
+            let messages = Utils::Messages::load(include_str!("../../messages/meme_already_exists.in"));
 
             self.bot
-                .send_message(
-                    self.msg.chat.id,
-                    messages.random().replace("{user_name}", &user_text),
-                )
+                .send_message(self.msg.chat.id, messages.random().replace("{user_name}", &user_text))
                 .reply_to_message_id(meme.msg_id())
                 .await?;
 
@@ -220,9 +199,7 @@ impl MessagesHandler {
             .reply_markup(markup.get_markup())
             .await?;
 
-        self.app
-            .database
-            .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+        self.app.database.replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
 
         if s_meme.0 > 0 {
             let messages = Utils::Messages::load(include_str!("../../messages/similar_meme.in"));
@@ -230,16 +207,10 @@ impl MessagesHandler {
             self.bot
                 .send_message(
                     self.msg.chat.id,
-                    messages
-                        .random()
-                        .replace("{user_name}", &user_text)
-                        .replace(
-                            "{percent}",
-                            &Utils::Messages::pluralize(
-                                s_meme.0,
-                                ("процент", "процента", "процентов"),
-                            ),
-                        ),
+                    messages.random().replace("{user_name}", &user_text).replace(
+                        "{percent}",
+                        &Utils::Messages::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                    ),
                 )
                 .reply_to_message_id(s_meme.1.unwrap().msg_id())
                 .reply_markup(
@@ -268,9 +239,7 @@ impl MessagesHandler {
             ))
             .expect("Can't add video meme");
 
-        self.bot
-            .delete_message(self.msg.chat.id, self.msg.id)
-            .await?;
+        self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
 
         let markup = MemeMarkup::new(0, 0, meme.uuid);
         let caption = if let Some(caption) = self.msg.caption() {
@@ -286,9 +255,7 @@ impl MessagesHandler {
             .reply_markup(markup.get_markup())
             .await?;
 
-        self.app
-            .database
-            .replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+        self.app.database.replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
 
         Ok(())
     }

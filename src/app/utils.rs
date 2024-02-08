@@ -36,10 +36,7 @@ pub struct Messages {
 
 impl Messages {
     pub fn load(text: &str) -> Self {
-        let vec: Vec<&str> = text
-            .split(';')
-            .filter(|text| !text.trim().is_empty())
-            .collect();
+        let vec: Vec<&str> = text.split(';').filter(|text| !text.trim().is_empty()).collect();
 
         Self {
             messages: vec.iter().map(|s| s.trim().to_string()).collect(),
@@ -94,9 +91,7 @@ impl Period {
             return true;
         }
 
-        (now.end_of_month().day() == now.day())
-            && (Weekday::Sun != now.weekday())
-            && (Weekday::Sat != now.weekday())
+        (now.end_of_month().day() == now.day()) && (Weekday::Sun != now.weekday()) && (Weekday::Sat != now.weekday())
     }
 
     pub fn is_today_a_last_year_day() -> bool {

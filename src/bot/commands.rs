@@ -5,22 +5,15 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::app::Application;
 use crate::bot::Bot;
-use crate::database::models::AddChat;
 
 use super::markups::*;
 
 #[derive(BotCommands, Clone)]
-#[command(
-    rename_rule = "lowercase",
-    description = "Команды которые поддерживает бот:"
-)]
+#[command(rename_rule = "lowercase", description = "Команды которые поддерживает бот:")]
 pub enum PublicCommand {
     #[command(description = "Показывает перечень команд")]
     Help,
-    #[command(
-        rename_rule = "UPPERCASE",
-        description = "Press \"F\" to Pray Respects"
-    )]
+    #[command(rename_rule = "UPPERCASE", description = "Press \"F\" to Pray Respects")]
     F,
     #[command(description = "Это даже не баян, это аккордеон на**й")]
     Accordion,
@@ -28,15 +21,10 @@ pub enum PublicCommand {
     UnMeme,
     #[command(description = "Статистика мемочата")]
     Stats,
-    #[command(description = "Зарегистрировать чат (только для админов)")]
-    Register,
 }
 
 #[derive(BotCommands, Clone)]
-#[command(
-    rename_rule = "lowercase",
-    description = "Команды которые поддерживает бот:"
-)]
+#[command(rename_rule = "lowercase", description = "Команды которые поддерживает бот:")]
 pub enum PrivateCommand {
     #[command(description = "Показывает перечень команд")]
     Help,
@@ -51,18 +39,10 @@ pub struct CommandsHandler {
 }
 
 impl CommandsHandler {
-    pub async fn public_handle(
-        bot: Bot,
-        msg: Message,
-        cmd: PublicCommand,
-        app: Arc<Application>,
-    ) -> Result<()> {
+    pub async fn public_handle(bot: Bot, msg: Message, cmd: PublicCommand, app: Arc<Application>) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
-        handler
-            .bot
-            .delete_message(handler.msg.chat.id, handler.msg.id)
-            .await?;
+        handler.bot.delete_message(handler.msg.chat.id, handler.msg.id).await?;
 
         match cmd {
             PublicCommand::Help => {
@@ -77,9 +57,6 @@ impl CommandsHandler {
             PublicCommand::UnMeme => {
                 handler.unmeme_command().await?;
             }
-            PublicCommand::Register => {
-                handler.register_command().await?;
-            }
             PublicCommand::Stats => {
                 handler.stats_command().await?;
             }
@@ -88,12 +65,7 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn private_handle(
-        bot: Bot,
-        msg: Message,
-        cmd: PrivateCommand,
-        app: Arc<Application>,
-    ) -> Result<()> {
+    pub async fn private_handle(bot: Bot, msg: Message, cmd: PrivateCommand, app: Arc<Application>) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
         match cmd {
@@ -177,44 +149,14 @@ impl CommandsHandler {
         Ok(())
     }
 
-    pub async fn register_command(&self) -> Result<()> {
-        let chat_id = self.msg.chat.id.0;
-
-        if self.app.redis.is_chat_registered(chat_id) {
-            return Ok(());
-        }
-
-        let admins = self.app.get_chat_admins(chat_id).await;
-
-        if !admins.contains(&self.msg.from().unwrap().id.0) {
-            return Ok(());
-        }
-
-        self.app.redis.register_chat(chat_id);
-        self.app.redis.set_chat_admins(chat_id, &admins);
-
-        let _ = self
-            .app
-            .database
-            .add_chat(&AddChat::new_from_tg(&self.msg.chat));
-
-        self.bot
-            .send_message(self.msg.chat.id, "Чат успешно зарегистрирован!")
-            .await?;
-
-        Ok(())
-    }
-
     pub async fn f_command(&self) -> Result<()> {
-        self.bot
-            .send_message(self.msg.chat.id, String::from("F"))
-            .await?;
+        self.bot.send_message(self.msg.chat.id, String::from("F")).await?;
 
         Ok(())
     }
 
     pub async fn accordion_command(&self) -> Result<()> {
-        let me = self.app.bot.get_me().await?;
+        let me = self.bot.get_me().await?;
 
         match self.msg.reply_to_message() {
             Some(repl) => {
@@ -222,60 +164,48 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
-                let can_send =
-                    self.app
-                        .redis
-                        .can_send_message("accordion", self.msg.chat.id.0, self.msg.id.0);
+                let can_send = self
+                    .app
+                    .redis
+                    .can_send_message("accordion", self.msg.chat.id.0, self.msg.id.0);
 
                 if !can_send {
                     return Ok(());
                 }
 
-                let meme = self
-                    .app
-                    .database
-                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
-                let user_res = self
-                    .bot
-                    .get_chat_member(self.msg.chat.id, meme.user_id())
-                    .await;
+                let meme = self.app.database.get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                let user_res = self.bot.get_chat_member(self.msg.chat.id, meme.user_id()).await;
                 let mut user_text = String::new();
 
                 if user_res.is_ok() {
-                    user_text = format!(
-                        "{}!\n",
-                        crate::app::utils::get_user_text(&user_res.unwrap().user)
-                    );
+                    user_text = format!("{}!\n", crate::app::utils::get_user_text(&user_res.unwrap().user));
                 }
 
                 self.bot
                     .send_message(
                         self.msg.chat.id,
-                        format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?")
+                        format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?"),
                     )
                     .reply_to_message_id(repl.id)
                     .reply_markup(
                         DeleteMarkup::new(meme.uuid)
                             .set_ok_text("👎 Удалите, прошу прощения")
                             .set_none_text("👍 Беру на себя ответственность")
-                            .get_markup()
+                            .get_markup(),
                     )
                     .await?;
             }
             None => {
-                let can_send = self.app.redis.can_send_message(
-                    "accordion_none",
-                    self.msg.chat.id.0,
-                    self.msg.id.0,
-                );
+                let can_send = self
+                    .app
+                    .redis
+                    .can_send_message("accordion_none", self.msg.chat.id.0, self.msg.id.0);
 
                 if can_send {
                     self.bot
                         .send_message(
                             self.msg.chat.id,
-                            String::from(
-                                "Чтобы пожаловаться на сообщение, на него нужно ответить!",
-                            ),
+                            String::from("Чтобы пожаловаться на сообщение, на него нужно ответить!"),
                         )
                         .await?;
                 }
@@ -286,7 +216,7 @@ impl CommandsHandler {
     }
 
     pub async fn unmeme_command(&self) -> Result<()> {
-        let me = self.app.bot.get_me().await?;
+        let me = self.bot.get_me().await?;
 
         match self.msg.reply_to_message() {
             Some(repl) => {
@@ -294,10 +224,10 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
-                let can_send =
-                    self.app
-                        .redis
-                        .can_send_message("unmeme", self.msg.chat.id.0, self.msg.id.0);
+                let can_send = self
+                    .app
+                    .redis
+                    .can_send_message("unmeme", self.msg.chat.id.0, self.msg.id.0);
 
                 if !can_send {
                     return Ok(());
@@ -321,11 +251,10 @@ impl CommandsHandler {
                     .await?;
             }
             None => {
-                let can_send = self.app.redis.can_send_message(
-                    "unmeme_none",
-                    self.msg.chat.id.0,
-                    self.msg.id.0,
-                );
+                let can_send = self
+                    .app
+                    .redis
+                    .can_send_message("unmeme_none", self.msg.chat.id.0, self.msg.id.0);
                 if can_send {
                     self.bot
                         .send_message(
@@ -352,10 +281,7 @@ impl CommandsHandler {
 
         let memes_count = self.app.database.get_memes_count(self.msg.chat.id.0);
         let likes_count = self.app.database.get_meme_likes_count(self.msg.chat.id.0);
-        let dislikes_count = self
-            .app
-            .database
-            .get_meme_dislikes_count(self.msg.chat.id.0);
+        let dislikes_count = self.app.database.get_meme_dislikes_count(self.msg.chat.id.0);
 
         let message = include_str!("../../messages/stats.in")
             .replace("{memes_count}", &memes_count.to_string())

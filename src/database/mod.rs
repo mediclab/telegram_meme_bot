@@ -13,8 +13,7 @@ use crate::app::utils::Period;
 use crate::database::{
     models::*,
     schema::{
-        chat_admins as ChatAdminsSchema, chats as ChatsSchema, meme_likes as MemeLikesSchema,
-        memes as MemesSchema, users as UsersSchema,
+        chat_admins as ChatAdminsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
     },
 };
 
@@ -66,9 +65,7 @@ impl DBManager {
     }
 
     pub fn get_meme(&self, uuid: &Uuid) -> Result<Meme, Error> {
-        MemesSchema::table
-            .find(uuid)
-            .first(&mut *self.get_connection())
+        MemesSchema::table.find(uuid).first(&mut *self.get_connection())
     }
 
     pub fn get_memes_by_short_hash(&self, short_hash: &str) -> Result<Vec<Meme>, Error> {
@@ -187,11 +184,7 @@ impl DBManager {
             .first(&mut *self.get_connection())
     }
 
-    pub fn get_top_likers(
-        &self,
-        period: &Period,
-        operation: MemeLikeOperation,
-    ) -> Result<(i64, i64), Error> {
+    pub fn get_top_likers(&self, period: &Period, operation: MemeLikeOperation) -> Result<(i64, i64), Error> {
         let (start, end) = period.dates();
 
         MemeLikesSchema::table
@@ -241,12 +234,6 @@ impl DBManager {
             .is_ok()
     }
 
-    pub fn add_chat(&self, chat: &AddChat) -> Result<Chat, Error> {
-        diesel::insert_into(ChatsSchema::table)
-            .values(chat)
-            .get_result(&mut *self.get_connection())
-    }
-
     pub fn get_max_disliked_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
         let (start, end) = period.dates();
 
@@ -293,34 +280,21 @@ impl DBManager {
             .unwrap_or(0)
     }
 
-    fn insert_for_like(
-        &self,
-        from_user_id: i64,
-        uuid: &Uuid,
-        operation: MemeLikeOperation,
-    ) -> bool {
+    fn insert_for_like(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
         diesel::insert_into(MemeLikesSchema::table)
             .values((
                 MemeLikesSchema::dsl::user_id.eq(from_user_id),
                 MemeLikesSchema::dsl::meme_uuid.eq(uuid),
                 MemeLikesSchema::dsl::num.eq(operation.id()),
             ))
-            .on_conflict((
-                MemeLikesSchema::dsl::user_id,
-                MemeLikesSchema::dsl::meme_uuid,
-            ))
+            .on_conflict((MemeLikesSchema::dsl::user_id, MemeLikesSchema::dsl::meme_uuid))
             .do_update()
             .set(MemeLikesSchema::dsl::num.eq(operation.id()))
             .execute(&mut *self.get_connection())
             .is_ok()
     }
 
-    fn cancel_for_like(
-        &self,
-        from_user_id: i64,
-        uuid: &Uuid,
-        operation: MemeLikeOperation,
-    ) -> bool {
+    fn cancel_for_like(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
         diesel::delete(MemeLikesSchema::table)
             .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))
             .filter(MemeLikesSchema::dsl::user_id.eq(from_user_id))
@@ -329,12 +303,7 @@ impl DBManager {
             .is_ok()
     }
 
-    fn exists_for_like(
-        &self,
-        from_user_id: i64,
-        uuid: &Uuid,
-        operation: MemeLikeOperation,
-    ) -> bool {
+    fn exists_for_like(&self, from_user_id: i64, uuid: &Uuid, operation: MemeLikeOperation) -> bool {
         dsl::select(dsl::exists(
             MemeLikesSchema::table
                 .filter(MemeLikesSchema::dsl::meme_uuid.eq(uuid))

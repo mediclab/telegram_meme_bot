@@ -1,6 +1,7 @@
 use redis::{Client as RedisClient, Commands, Connection, RedisResult};
 use serde_json::json;
 
+#[derive(Clone)]
 pub struct RedisManager {
     client: RedisClient,
 }
@@ -19,10 +20,7 @@ impl RedisManager {
     }
 
     pub fn can_send_message(&self, key: &str, chat_id: i64, message_id: i32) -> bool {
-        let r_message_id = self
-            .get_connection()
-            .get(&format!("{chat_id}_msg_{key}"))
-            .unwrap_or(0);
+        let r_message_id = self.get_connection().get(&format!("{chat_id}_msg_{key}")).unwrap_or(0);
 
         if r_message_id == 0 || (message_id - r_message_id > 20) {
             let _: () = self

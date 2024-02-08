@@ -21,6 +21,7 @@ pub mod top;
 
 pub type Bot = DefaultParseMode<teloxide::Bot>;
 
+#[derive(Clone)]
 pub struct BotManager {
     pub bot: Bot,
     pub me: Me,
@@ -44,9 +45,7 @@ impl BotManager {
             )
             .branch(
                 Update::filter_chat_member()
-                    .filter(move |cm: ChatMemberUpdated| {
-                        BotManager::filter_messages(&cm.chat, chat_id)
-                    })
+                    .filter(move |cm: ChatMemberUpdated| BotManager::filter_messages(&cm.chat, chat_id))
                     .endpoint(MessagesHandler::chat_member_handle),
             )
             .branch(
