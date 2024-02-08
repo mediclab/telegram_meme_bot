@@ -39,13 +39,8 @@ impl CallbackHandler {
     }
 
     pub async fn public_handle(&self) -> Result<()> {
-        let data: MemeCallback = serde_json::from_str(
-            &self
-                .callback
-                .data
-                .clone()
-                .unwrap_or_else(|| r#"{}"#.to_string()),
-        )?;
+        let data: MemeCallback =
+            serde_json::from_str(&self.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
         let meme = self.app.database.get_meme(&data.uuid)?;
 
@@ -147,9 +142,7 @@ impl CallbackHandler {
 
         self.bot.delete_message(msg.chat.id, msg.id).await?;
 
-        self.bot
-            .delete_message(meme.chat_id(), meme.msg_id())
-            .await?;
+        self.bot.delete_message(meme.chat_id(), meme.msg_id()).await?;
 
         self.app.database.delete_meme(&meme.uuid);
 
@@ -179,10 +172,7 @@ impl CallbackHandler {
     }
 
     fn can_user_interact(&self, meme: &Meme) -> bool {
-        let admins = self
-            .app
-            .redis
-            .get_chat_admins(self.callback.chat_id().unwrap().0);
+        let admins = self.app.redis.get_chat_admins(self.callback.chat_id().unwrap().0);
         let is_user_admin = admins.contains(&self.callback.from.id.0);
 
         is_user_admin || (meme.user_id == self.callback.from.id.0 as i64)

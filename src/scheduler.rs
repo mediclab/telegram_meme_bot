@@ -1,8 +1,7 @@
 use crate::app::utils::Period;
 use crate::app::Application;
-use crate::bot;
+use crate::bot::top::Statistics;
 use clokwerk::{Interval::Friday, Job, TimeUnits};
-use futures::executor::block_on;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -35,28 +34,24 @@ impl Scheduler {
         scheduler.every(Friday).at(&self.timings.week).once().run({
             let scheduler_app = self.app.clone();
             move || {
-                block_on(bot::top::send_top_stats(&scheduler_app, Period::Week))
-                    .expect("Can't send meme of week");
+                let stats = Statistics::new(scheduler_app.clone());
+                stats.send(scheduler_app.get_bot(), &Period::Week);
             }
         });
 
-        scheduler
-            .every(1.day())
-            .at(&self.timings.month)
-            .once()
-            .run({
-                let scheduler_app = self.app.clone();
-                move || {
-                    block_on(bot::top::send_top_stats(&scheduler_app, Period::Month))
-                        .expect("Can't send meme of month");
-                }
-            });
+        scheduler.every(1.day()).at(&self.timings.month).once().run({
+            let scheduler_app = self.app.clone();
+            move || {
+                let stats = Statistics::new(scheduler_app.clone());
+                stats.send(scheduler_app.get_bot(), &Period::Month);
+            }
+        });
 
         scheduler.every(1.day()).at(&self.timings.year).once().run({
             let scheduler_app = self.app.clone();
             move || {
-                block_on(bot::top::send_top_stats(&scheduler_app, Period::Year))
-                    .expect("Can't send meme of year");
+                let stats = Statistics::new(scheduler_app.clone());
+                stats.send(scheduler_app.get_bot(), &Period::Year);
             }
         });
 

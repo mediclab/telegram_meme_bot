@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use dotenv::dotenv;
-use teloxide::prelude::*;
 
 use crate::app::Application;
+use crate::bot::top::Statistics;
 use crate::scheduler::Scheduler;
 use app::utils::Period;
 
@@ -56,19 +56,16 @@ async fn main() {
 
     match args.command {
         Commands::MemeOfWeek => {
-            bot::top::send_top_stats(&app, Period::Week)
-                .await
-                .expect("Can't send meme of week");
+            let stats = Statistics::new(app.clone());
+            stats.send(app.get_bot(), &Period::Week);
         }
         Commands::MemeOfMonth => {
-            bot::top::send_top_stats(&app, Period::Month)
-                .await
-                .expect("Can't send meme of month");
+            let stats = Statistics::new(app.clone());
+            stats.send(app.get_bot(), &Period::Month);
         }
         Commands::MemeOfYear => {
-            bot::top::send_top_stats(&app, Period::Year)
-                .await
-                .expect("Can't send meme of year");
+            let stats = Statistics::new(app.clone());
+            stats.send(app.get_bot(), &Period::Year);
         }
         Commands::Start => {
             info!("MemeBot version = {}", &app.config.app_version);
@@ -78,9 +75,7 @@ async fn main() {
 
             info!("Starting dispatch...");
 
-            app.bot_manager
-                .dispatch(dptree::deps![app.clone()], app.config.chat_id)
-                .await;
+            app.bot_dispatch().await;
 
             info!("Dispatch stopped...");
 

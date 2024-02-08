@@ -27,11 +27,7 @@ pub struct MemeMarkup {
 
 impl MemeMarkup {
     pub fn new(likes: i64, dislikes: i64, uuid: Uuid) -> Self {
-        Self {
-            likes,
-            dislikes,
-            uuid,
-        }
+        Self { likes, dislikes, uuid }
     }
 
     pub fn get_markup(&self) -> InlineKeyboardMarkup {

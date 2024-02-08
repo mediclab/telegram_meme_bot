@@ -2,6 +2,7 @@ FROM rust:slim-bullseye as builder
 
 RUN apt-get update \
     && apt-get install -y cmake build-essential clang pkg-config \
-      libpq-dev llvm-dev libssl-dev \
+          libavcodec-dev libavformat-dev libswscale-dev libtbb-dev llvm-dev \
+          libgtk2.0-dev libdc1394-22-dev libssl-dev libjpeg-dev libpng-dev libtiff-dev libpq-dev \
     && cargo install diesel_cli --no-default-features --features "postgres" --target-dir /usr/local/bin \
     && apt-get clean

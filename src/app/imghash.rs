@@ -17,8 +17,7 @@ pub struct ImageHash {
 impl ImageHash {
     pub fn new(filename: &str) -> Self {
         Self {
-            image: imgcodecs::imread(filename, ImreadModes::IMREAD_COLOR as i32)
-                .unwrap_or_default(),
+            image: imgcodecs::imread(filename, ImreadModes::IMREAD_COLOR as i32).unwrap_or_default(),
         }
     }
 
@@ -84,11 +83,7 @@ impl ImageHash {
     }
 
     pub fn compare_hashes(hash1: &str, hash2: &str) -> f64 {
-        let diffs_num = hash1
-            .chars()
-            .zip(hash2.chars())
-            .filter(|(c1, c2)| c1 != c2)
-            .count();
+        let diffs_num = hash1.chars().zip(hash2.chars()).filter(|(c1, c2)| c1 != c2).count();
 
         ((hash1.len() - diffs_num) as f64 / hash1.len() as f64) * 100f64
     }

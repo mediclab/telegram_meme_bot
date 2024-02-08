@@ -6,12 +6,6 @@ COPY --from=medic84/opencv:4.8.0 /usr/local/include/opencv4 /usr/local/include/o
 COPY --from=medic84/opencv:4.8.0 /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4/
 COPY --from=medic84/opencv:4.8.0 /usr/local/share/opencv4 /usr/local/share/opencv4/
 
-RUN apt-get update \
-    && apt-get install -y cmake build-essential clang pkg-config \
-      libavcodec-dev libavformat-dev libswscale-dev libtbb-dev libjpeg-dev libpng-dev libtiff-dev libpq-dev llvm-dev \
-      libgtk2.0-dev libdc1394-22-dev libssl-dev \
-    && apt-get clean
-
 WORKDIR /app
 
 COPY . /app
@@ -29,8 +23,8 @@ LABEL version=$BOT_VERSION
 LABEL description="Bot for mem-chats"
 
 RUN apt-get update  \
-    && apt-get install -y ca-certificates libpq5 libjpeg-dev libpng-dev libopenjp2-7 \
-      libtbb2 libtiff5 libwebp6 libopenexr25 libgtk2.0-0 \
+    && apt-get install -y ca-certificates libpq5 libjpeg-dev libpng-dev libopenjp2-7 libtbb2 libtiff5 libwebp6 \
+      libopenexr25 libgtk2.0-0 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

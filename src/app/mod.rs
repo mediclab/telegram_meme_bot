@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use envconfig::Envconfig;
 use futures::executor::block_on;
 use imghash::ImageHash;
+use std::sync::Arc;
 use std::{thread::sleep, time::Duration};
 use teloxide::{net::Download, prelude::*, types::User};
 use tokio::fs::File;
@@ -14,15 +15,15 @@ use crate::redis::RedisManager;
 pub mod imghash;
 pub mod utils;
 
+#[derive(Clone)]
 pub struct Application {
     pub database: DBManager,
     pub redis: RedisManager,
-    pub bot_manager: BotManager,
-    pub bot: Bot,
+    bot_manager: BotManager,
     pub config: Config,
 }
 
-#[derive(Envconfig)]
+#[derive(Envconfig, Clone)]
 pub struct Config {
     #[envconfig(from = "BOT_VERSION", default = "unknown")]
     pub app_version: String,
@@ -40,13 +41,11 @@ impl Application {
     pub fn new() -> Self {
         let config = Config::init_from_env().expect("Can't load config from environment");
         let bot_manager = BotManager::new(&config.bot_token);
-        let bot = bot_manager.bot.clone();
 
         let app = Self {
             database: DBManager::connect(&config.db_url),
             redis: RedisManager::connect(&config.redis_url),
             bot_manager,
-            bot,
             config,
         };
 
@@ -56,15 +55,12 @@ impl Application {
         app
     }
 
-    pub async fn generate_hashes(
-        &self,
-        file_id: &String,
-    ) -> Result<(Option<String>, Option<String>)> {
-        let photo = self.bot.get_file(file_id).await?;
+    pub async fn generate_hashes(&self, file_id: &String) -> Result<(Option<String>, Option<String>)> {
+        let photo = self.get_bot().get_file(file_id).await?;
         let path = format!("/tmp/{}", uuid::Uuid::new_v4());
         let mut file = File::create(&path).await?;
 
-        self.bot.download_file(&photo.path, &mut file).await?;
+        self.get_bot().download_file(&photo.path, &mut file).await?;
 
         sleep(Duration::from_millis(50)); // Sometimes downloading is very fast
         debug!("Filesize {path} is = {}", std::fs::metadata(&path)?.len());
@@ -86,38 +82,41 @@ impl Application {
     }
 
     pub async fn get_chat_admins(&self, chat_id: i64) -> Vec<u64> {
-        let admins = self.bot.get_chat_administrators(ChatId(chat_id)).await;
+        let admins = self.get_bot().get_chat_administrators(ChatId(chat_id)).await;
 
         if admins.is_err() {
             return Vec::default();
         }
 
-        admins
-            .unwrap()
-            .iter()
-            .map(|m| m.user.id.0)
-            .collect::<Vec<u64>>()
+        admins.unwrap().iter().map(|m| m.user.id.0).collect::<Vec<u64>>()
     }
 
-    pub async fn get_chat_user(&self, chat_id: i64, user_id: u64) -> Result<User> {
-        let member = self
-            .bot
-            .get_chat_member(ChatId(chat_id), UserId(user_id))
-            .await;
+    pub fn get_chat_user(&self, chat_id: i64, user_id: i64) -> User {
+        let member = block_on(
+            self.get_bot()
+                .get_chat_member(ChatId(chat_id), UserId(user_id as u64))
+                .send(),
+        );
 
-        Ok(member.expect("Can't get chat member").user)
+        member.expect("Can't get chat member").user
+    }
+
+    pub fn get_bot(&self) -> &Bot {
+        &self.bot_manager.bot
+    }
+
+    pub async fn bot_dispatch(&self) {
+        self.bot_manager
+            .dispatch(dptree::deps![Arc::new(self.clone())], self.config.chat_id)
+            .await
     }
 
     fn check_version(&self) {
         let chat_id = self.config.chat_id;
         if let Some(redis_version) = self.redis.get_app_version() {
             if redis_version != self.config.app_version {
-                block_on(
-                    self.bot
-                        .send_message(ChatId(chat_id), "😌 Я обновилься!")
-                        .send(),
-                )
-                .expect("Can't send message");
+                block_on(self.get_bot().send_message(ChatId(chat_id), "😌 Я обновилься!").send())
+                    .expect("Can't send message");
             }
         }
 
