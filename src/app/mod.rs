@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use envconfig::Envconfig;
 use futures::executor::block_on;
 use imghash::ImageHash;
+use std::sync::Arc;
 use std::{thread::sleep, time::Duration};
 use teloxide::{net::Download, prelude::*, types::Chat, types::ParseMode, Bot as TxBot};
 use tokio::fs::File;
@@ -155,7 +156,7 @@ impl Application {
             .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
 
         Dispatcher::builder(self.bot.clone(), handler)
-            .dependencies(dptree::deps![self.clone()])
+            .dependencies(dptree::deps![Arc::new(self.clone())])
             .enable_ctrlc_handler()
             .build()
             .dispatch()
