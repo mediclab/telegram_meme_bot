@@ -1,10 +1,8 @@
 use crate::app::utils::Period;
-use crate::app::{utils as Utils, utils::Messages, Application};
-use crate::bot::Bot as AppBot;
+use crate::app::{utils::Messages, Application};
 use crate::database::models::{Meme, MemeLikeOperation};
-use futures::executor::block_on;
+use crate::nats::messages::StatisticMessage;
 use std::sync::Arc;
-use teloxide::prelude::*;
 
 pub struct Statistics {
     app: Arc<Application>,
@@ -15,45 +13,48 @@ impl Statistics {
         Self { app }
     }
 
-    pub fn send(&self, bot: &AppBot, period: &Period) {
+    pub fn send(&self, period: &Period) {
         match *period {
             Period::Week => {
                 if Period::is_today_a_friday() {
-                    self.send_by_period(bot, period);
+                    self.send_by_period(period);
                 } else {
+                    self.send_by_period(period);
                     debug!("Today is not a friday!");
                 }
             }
             Period::Month => {
                 if Period::is_today_a_last_month_day() {
-                    self.send_by_period(bot, period);
+                    self.send_by_period(period);
                 } else {
+                    self.send_by_period(period);
                     debug!("Today is not a last month day!");
                 }
             }
             Period::Year => {
                 if Period::is_today_a_last_year_day() {
-                    self.send_by_period(bot, period);
+                    self.send_by_period(period);
                 } else {
+                    self.send_by_period(period);
                     debug!("Today is not a last year day!");
                 }
             }
         };
     }
 
-    fn send_by_period(&self, bot: &AppBot, period: &Period) {
+    fn send_by_period(&self, period: &Period) {
         if let Some((meme, text)) = self.get_top_liked_meme(period) {
-            block_on(
-                bot.send_message(meme.chat_id(), text)
-                    .reply_to_message_id(meme.msg_id())
-                    .send(),
-            )
-            .expect("Can't send 'top of liked' message");
+            let msg = StatisticMessage {
+                chat_id: meme.chat_id,
+                user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
+                message: text,
+            };
+            self.app.nats.publish(&msg);
         } else {
             error!("Can't get top liked mem for this period!");
         }
 
-        let message = vec![
+        let messages = vec![
             self.get_top_memesender(period),
             self.get_top_selfliker(period),
             self.get_top_liker(period),
@@ -62,28 +63,28 @@ impl Statistics {
         .into_iter()
         .filter(|i| i.is_some())
         .map(|i| i.unwrap_or_default())
-        .collect::<Vec<String>>();
+        .collect::<Vec<((String, i64), String)>>();
+
+        let message = messages.iter().map(|i| i.1.clone()).collect::<Vec<String>>();
 
         if !message.is_empty() {
-            block_on(
-                bot.send_message(
-                    ChatId(self.app.config.chat_id),
-                    format!("Хотели топов? Их есть у меня!\n\n{}", &message.join("\n\n")),
-                )
-                .send(),
-            )
-            .expect("Can't send top statistics");
+            let msg = StatisticMessage {
+                chat_id: self.app.config.chat_id,
+                user_ids: messages.into_iter().map(|i| i.0).collect::<Vec<(String, i64)>>(),
+                message: format!("Хотели топов? Их есть у меня!\n\n{}", &message.join("\n\n")),
+            };
+            self.app.nats.publish(&msg);
         } else {
             error!("Can't get top statistics for this period!");
         }
 
         if let Some((meme, text)) = self.get_top_disliked_meme(period) {
-            block_on(
-                bot.send_message(meme.chat_id(), text)
-                    .reply_to_message_id(meme.msg_id())
-                    .send(),
-            )
-            .expect("Can't send 'top of disliked' message");
+            let msg = StatisticMessage {
+                chat_id: meme.chat_id,
+                user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
+                message: text,
+            };
+            self.app.nats.publish(&msg);
         } else {
             info!("Can't get top disliked mem for this period!");
         }
@@ -92,11 +93,9 @@ impl Statistics {
     fn get_top_liked_meme(&self, period: &Period) -> Option<(Meme, String)> {
         match self.app.database.get_top_meme(period) {
             Ok((meme, likes)) => {
-                let user = self.app.get_chat_user(meme.chat_id, meme.user_id);
-
                 let text = format!(
                     "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! 🎉",
-                    Utils::get_user_text(&user),
+                    "{USERNAME}",
                     Messages::pluralize(likes, ("лайк", "лайка", "лайков")),
                     Statistics::get_translations(period).1
                 );
@@ -116,11 +115,9 @@ impl Statistics {
                 return None;
             }
 
-            let user = self.app.get_chat_user(meme.chat_id, meme.user_id);
-
             let text = format!(
                 "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? 🤔",
-                Utils::get_user_text(&user),
+                "{USERNAME}",
                 Messages::pluralize(dislikes, ("дизлайк", "дизлайка", "дизлайков"))
             );
 
@@ -130,83 +127,83 @@ impl Statistics {
         None
     }
 
-    fn get_top_memesender(&self, period: &Period) -> Option<String> {
+    fn get_top_memesender(&self, period: &Period) -> Option<((String, i64), String)> {
         if let Ok((user_id, count)) = self.app.database.get_top_memesender(period) {
-            let user = self.app.get_chat_user(self.app.config.chat_id, user_id);
+            let placeholder = String::from("{MEMESENDER}");
             let period_text = Statistics::get_translations(period);
 
             let text = format!(
                 "🤡 Мемомёт {}:\n{} отправил {} {}!",
                 period_text.0,
-                Utils::get_user_text(&user),
+                &placeholder,
                 Messages::pluralize(count, ("мем", "мема", "мемов")),
                 period_text.1
             );
 
-            return Some(text);
+            return Some(((placeholder, user_id), text));
         }
 
         None
     }
 
-    fn get_top_selfliker(&self, period: &Period) -> Option<String> {
+    fn get_top_selfliker(&self, period: &Period) -> Option<((String, i64), String)> {
         if let Ok((user_id, count)) = self.app.database.get_top_selflikes(period) {
-            let user = self.app.get_chat_user(self.app.config.chat_id, user_id);
+            let placeholder = String::from("{SELFLIKER}");
             let period_text = Statistics::get_translations(period);
 
             if count > 4 {
                 let text = format!(
                     "😈 Хитрец {}:\n{} лайкнул свои же мемы {} {}!",
                     period_text.0,
-                    Utils::get_user_text(&user),
+                    &placeholder,
                     Messages::pluralize(count, ("раз", "раза", "раз")),
                     period_text.1
                 );
 
-                return Some(text);
+                return Some(((placeholder, user_id), text));
             }
         }
 
         None
     }
 
-    fn get_top_liker(&self, period: &Period) -> Option<String> {
+    fn get_top_liker(&self, period: &Period) -> Option<((String, i64), String)> {
         let query = self.app.database.get_top_likers(period, MemeLikeOperation::Like);
 
         if let Ok((user_id, count)) = query {
-            let user = self.app.get_chat_user(self.app.config.chat_id, user_id);
+            let placeholder = String::from("{LIKER}");
             let period_text = Statistics::get_translations(period);
 
             let text = format!(
                 "❤️ Добродеятель {}:\n{} поставил больше всех лайков {}!\nЦелых {}",
                 period_text.0,
-                Utils::get_user_text(&user),
+                &placeholder,
                 period_text.1,
                 Messages::pluralize(count, ("лайк", "лайка", "лайков")),
             );
 
-            return Some(text);
+            return Some(((placeholder, user_id), text));
         }
 
         None
     }
 
-    fn get_top_disliker(&self, period: &Period) -> Option<String> {
+    fn get_top_disliker(&self, period: &Period) -> Option<((String, i64), String)> {
         let query = self.app.database.get_top_likers(period, MemeLikeOperation::Dislike);
 
         if let Ok((user_id, count)) = query {
-            let user = self.app.get_chat_user(self.app.config.chat_id, user_id);
+            let placeholder = String::from("{DISLIKER}");
             let period_text = Statistics::get_translations(period);
 
             let text = format!(
                 "😡 Засранец {}:\n{} поставил больше всех дизлайков {}!\nЦелых {}",
                 period_text.0,
-                Utils::get_user_text(&user),
+                &placeholder,
                 period_text.1,
                 Messages::pluralize(count, ("лайк", "лайка", "лайков")),
             );
 
-            return Some(text);
+            return Some(((placeholder, user_id), text));
         }
 
         None

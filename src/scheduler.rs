@@ -1,6 +1,6 @@
 use crate::app::utils::Period;
 use crate::app::Application;
-use crate::bot::top::Statistics;
+use crate::bot::statistics::Statistics;
 use clokwerk::{Interval::Friday, Job, TimeUnits};
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,7 +24,7 @@ impl Scheduler {
                 month: month.to_string(),
                 year: year.to_string(),
             },
-            app: app.clone(),
+            app,
         }
     }
 
@@ -35,7 +35,7 @@ impl Scheduler {
             let scheduler_app = self.app.clone();
             move || {
                 let stats = Statistics::new(scheduler_app.clone());
-                stats.send(scheduler_app.get_bot(), &Period::Week);
+                stats.send(&Period::Week);
             }
         });
 
@@ -43,7 +43,7 @@ impl Scheduler {
             let scheduler_app = self.app.clone();
             move || {
                 let stats = Statistics::new(scheduler_app.clone());
-                stats.send(scheduler_app.get_bot(), &Period::Month);
+                stats.send(&Period::Month);
             }
         });
 
@@ -51,7 +51,7 @@ impl Scheduler {
             let scheduler_app = self.app.clone();
             move || {
                 let stats = Statistics::new(scheduler_app.clone());
-                stats.send(scheduler_app.get_bot(), &Period::Year);
+                stats.send(&Period::Year);
             }
         });
 

@@ -9,13 +9,14 @@ use clap::Parser;
 use dotenv::dotenv;
 
 use crate::app::Application;
-use crate::bot::top::Statistics;
+use crate::bot::statistics::Statistics;
 use crate::scheduler::Scheduler;
 use app::utils::Period;
 
 mod app;
 mod bot;
 mod database;
+mod nats;
 mod redis;
 mod scheduler;
 
@@ -54,34 +55,37 @@ async fn main() {
     let args = Cli::parse();
     let app = Arc::new(Application::new());
 
+    app.register_chat();
+    app.check_version();
+
     match args.command {
         Commands::MemeOfWeek => {
-            let stats = Statistics::new(app.clone());
-            stats.send(app.get_bot(), &Period::Week);
+            let stats = Statistics::new(app);
+            stats.send(&Period::Week);
         }
         Commands::MemeOfMonth => {
-            let stats = Statistics::new(app.clone());
-            stats.send(app.get_bot(), &Period::Month);
+            let stats = Statistics::new(app);
+            stats.send(&Period::Month);
         }
         Commands::MemeOfYear => {
-            let stats = Statistics::new(app.clone());
-            stats.send(app.get_bot(), &Period::Year);
+            let stats = Statistics::new(app);
+            stats.send(&Period::Year);
         }
         Commands::Start => {
             info!("MemeBot version = {}", &app.config.app_version);
-            info!("Starting scheduler...");
 
-            let scheduler_handle = Scheduler::new(app.clone(), "16:05", "17:05", "18:05").init();
+            info!("Starting scheduler...");
+            let scheduler_handle = Scheduler::new(app.clone(), "21:07", "19:07", "19:08").init();
+
+            info!("Starting subscriber...");
+            app.nats.subscriber(&app.bot);
 
             info!("Starting dispatch...");
-
-            app.bot_dispatch().await;
-
-            info!("Dispatch stopped...");
+            app.dispatch().await;
 
             scheduler_handle.stop();
 
-            info!("Scheduler stopped...");
+            info!("Shutdown bot...");
         }
     };
 }

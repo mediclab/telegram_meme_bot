@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.11.2"
+version = "0.11.3"
 edition = "2021"
 
 [profile.docker]
@@ -44,3 +44,4 @@ once_cell = "1.18.0"
 sentry = "0.32.1"
 clokwerk = "0.4.0"
 envconfig = "0.10.0"
+async-nats = "0.33.0"
