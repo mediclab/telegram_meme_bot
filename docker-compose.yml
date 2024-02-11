@@ -22,7 +22,19 @@ services:
     image: redis:latest
     ports:
       - "6379:6379"
-  
+
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+      - "6222:6222"
+    healthcheck:
+      test: echo $$(wget --server-response http://0.0.0.0:8222/varz 2>&1 | grep  '200 OK') | grep '200'  || exit 1
+      interval: 2s
+      timeout: 2s
+      retries: 5
+
   bot:
     build:
       dockerfile: "./Dockerfile"
@@ -34,6 +46,8 @@ services:
       - ./:/app
     depends_on:
       postgres:
+        condition: service_healthy
+      nats:
         condition: service_healthy
 
 volumes:

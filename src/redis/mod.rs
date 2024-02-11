@@ -1,7 +1,7 @@
 use redis::{Client as RedisClient, Commands, Connection, RedisResult};
 use serde_json::json;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RedisManager {
     client: RedisClient,
 }
