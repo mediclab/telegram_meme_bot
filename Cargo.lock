@@ -2520,7 +2520,7 @@ dependencies = [
 
 [[package]]
 name = "tg_meme_bot"
-version = "0.11.3"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "async-nats",

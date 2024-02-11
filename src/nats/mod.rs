@@ -7,8 +7,9 @@ use futures::executor::block_on;
 use futures::StreamExt;
 use serde_json::json;
 use std::str;
+use teloxide::payloads::SendMessageSetters;
 use teloxide::prelude::Requester;
-use teloxide::types::ChatId;
+use teloxide::types::{ChatId, MessageId};
 
 pub mod messages;
 
@@ -45,7 +46,13 @@ impl NatsManager {
                         message = message.replace(&user.0, &get_user_text(&info));
                     }
 
-                    bc.send_message(ChatId(stats.chat_id), message).await?;
+                    let mut snd = bc.send_message(ChatId(stats.chat_id), message);
+
+                    if let Some(reply_id) = stats.reply_id {
+                        snd = snd.reply_to_message_id(MessageId(reply_id as i32));
+                    }
+
+                    snd.await.expect("Can't send message");
                 }
 
                 Ok::<(), async_nats::Error>(())

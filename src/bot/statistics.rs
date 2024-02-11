@@ -19,7 +19,6 @@ impl Statistics {
                 if Period::is_today_a_friday() {
                     self.send_by_period(period);
                 } else {
-                    self.send_by_period(period);
                     debug!("Today is not a friday!");
                 }
             }
@@ -27,7 +26,6 @@ impl Statistics {
                 if Period::is_today_a_last_month_day() {
                     self.send_by_period(period);
                 } else {
-                    self.send_by_period(period);
                     debug!("Today is not a last month day!");
                 }
             }
@@ -35,7 +33,6 @@ impl Statistics {
                 if Period::is_today_a_last_year_day() {
                     self.send_by_period(period);
                 } else {
-                    self.send_by_period(period);
                     debug!("Today is not a last year day!");
                 }
             }
@@ -47,11 +44,12 @@ impl Statistics {
             let msg = StatisticMessage {
                 chat_id: meme.chat_id,
                 user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
+                reply_id: Some(meme.msg_id.unwrap()),
                 message: text,
             };
             self.app.nats.publish(&msg);
         } else {
-            error!("Can't get top liked mem for this period!");
+            warn!("Can't get top liked mem for this period!");
         }
 
         let messages = vec![
@@ -72,21 +70,23 @@ impl Statistics {
                 chat_id: self.app.config.chat_id,
                 user_ids: messages.into_iter().map(|i| i.0).collect::<Vec<(String, i64)>>(),
                 message: format!("Хотели топов? Их есть у меня!\n\n{}", &message.join("\n\n")),
+                reply_id: None,
             };
             self.app.nats.publish(&msg);
         } else {
-            error!("Can't get top statistics for this period!");
+            warn!("Can't get top statistics for this period!");
         }
 
         if let Some((meme, text)) = self.get_top_disliked_meme(period) {
             let msg = StatisticMessage {
                 chat_id: meme.chat_id,
                 user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
+                reply_id: Some(meme.msg_id.unwrap()),
                 message: text,
             };
             self.app.nats.publish(&msg);
         } else {
-            info!("Can't get top disliked mem for this period!");
+            warn!("Can't get top disliked mem for this period!");
         }
     }
 
