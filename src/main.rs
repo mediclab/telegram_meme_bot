@@ -75,7 +75,7 @@ async fn main() {
             info!("MemeBot version = {}", &app.config.app_version);
 
             info!("Starting scheduler...");
-            let scheduler_handle = Scheduler::new(app.clone(), "21:07", "19:07", "19:08").init();
+            let scheduler_handle = Scheduler::new(app.clone(), "16:05", "17:05", "18:05").init();
 
             info!("Starting subscriber...");
             app.nats.subscriber(&app.bot);
