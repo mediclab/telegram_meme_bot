@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use envconfig::Envconfig;
 use futures::executor::block_on;
 use imghash::ImageHash;
-use std::sync::Arc;
 use std::{thread::sleep, time::Duration};
 use teloxide::{net::Download, prelude::*, types::Chat, types::ParseMode, Bot as TxBot};
 use tokio::fs::File;
@@ -123,7 +122,7 @@ impl Application {
         true
     }
 
-    pub async fn dispatch(&self) {
+    pub async fn dispatch(&self, deps: DependencyMap) {
         let chat_id = self.config.chat_id;
         let handler = dptree::entry()
             .branch(
@@ -156,7 +155,7 @@ impl Application {
             .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
 
         Dispatcher::builder(self.bot.clone(), handler)
-            .dependencies(dptree::deps![Arc::new(self.clone())])
+            .dependencies(deps)
             .enable_ctrlc_handler()
             .build()
             .dispatch()

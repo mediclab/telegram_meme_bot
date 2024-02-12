@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use dotenv::dotenv;
+use teloxide::dptree;
 
 use crate::app::Application;
 use crate::bot::statistics::Statistics;
@@ -81,7 +82,7 @@ async fn main() {
             app.nats.subscriber(&app.bot);
 
             info!("Starting dispatch...");
-            app.dispatch().await;
+            app.dispatch(dptree::deps![app.clone()]).await;
 
             scheduler_handle.stop();
 
