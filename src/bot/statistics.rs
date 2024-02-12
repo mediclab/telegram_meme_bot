@@ -67,7 +67,7 @@ impl Statistics {
 
         if !message.is_empty() {
             let msg = StatisticMessage {
-                chat_id: self.app.config.chat_id,
+                chat_id: self.app.config.bot.chat_id,
                 user_ids: messages.into_iter().map(|i| i.0).collect::<Vec<(String, i64)>>(),
                 message: format!("Хотели топов? Их есть у меня!\n\n{}", &message.join("\n\n")),
                 reply_id: None,
