@@ -3,16 +3,12 @@ use envconfig::Envconfig;
 use futures::executor::block_on;
 use imghash::ImageHash;
 use std::{thread::sleep, time::Duration};
-use teloxide::{net::Download, prelude::*, types::Chat, types::ParseMode, Bot as TxBot};
-use tokio::fs::File;
+use teloxide::prelude::*;
 use utils::from_binary_to_hex;
 
-use crate::bot::callbacks::CallbackHandler;
-use crate::bot::commands::{CommandsHandler, PrivateCommand, PublicCommand};
-use crate::bot::messages::MessagesHandler;
-use crate::bot::Bot;
+use crate::bot::{BotConfig, BotManager};
 use crate::database::DBManager;
-use crate::nats::NatsManager;
+use crate::nats::{NatsConfig, NatsManager};
 use crate::redis::RedisManager;
 
 pub mod imghash;
@@ -24,27 +20,21 @@ pub struct Application {
     pub redis: RedisManager,
     pub nats: NatsManager,
     pub config: Config,
-    pub bot: Bot,
+    pub bot: BotManager,
 }
 
 #[derive(Envconfig, Clone, Debug)]
 pub struct Config {
     #[envconfig(from = "BOT_VERSION", default = "unknown")]
     pub app_version: String,
-    #[envconfig(from = "BOT_TOKEN")]
-    pub bot_token: String,
     #[envconfig(from = "DATABASE_URL")]
     pub db_url: String,
     #[envconfig(from = "REDIS_URL")]
     pub redis_url: String,
-    #[envconfig(from = "NATS_SERVER")]
-    pub nats_server: String,
-    #[envconfig(from = "NATS_USER")]
-    pub nats_user: String,
-    #[envconfig(from = "NATS_PASSWORD")]
-    pub nats_password: String,
-    #[envconfig(from = "CHAT_ID")]
-    pub chat_id: i64,
+    #[envconfig(nested = true)]
+    pub nats: NatsConfig,
+    #[envconfig(nested = true)]
+    pub bot: BotConfig,
 }
 
 impl Application {
@@ -54,18 +44,14 @@ impl Application {
         Self {
             database: DBManager::connect(&config.db_url),
             redis: RedisManager::connect(&config.redis_url),
-            bot: TxBot::new(&config.bot_token).parse_mode(ParseMode::Html),
-            nats: NatsManager::new(&config.nats_server, &config.nats_user, &config.nats_password),
+            bot: BotManager::new(&config.bot),
+            nats: NatsManager::new(&config.nats),
             config,
         }
     }
 
-    pub async fn generate_hashes(&self, file_id: &String) -> Result<(Option<String>, Option<String>)> {
-        let photo = self.bot.get_file(file_id).await?;
-        let path = format!("/tmp/{}", uuid::Uuid::new_v4());
-        let mut file = File::create(&path).await?;
-
-        self.bot.download_file(&photo.path, &mut file).await?;
+    pub async fn generate_hashes(&self, file_id: &str) -> Result<(Option<String>, Option<String>)> {
+        let path = self.bot.download_file(file_id).await?;
 
         sleep(Duration::from_millis(50)); // Sometimes downloading is very fast
         debug!("Filesize {path} is = {}", std::fs::metadata(&path)?.len());
@@ -86,21 +72,11 @@ impl Application {
         ))
     }
 
-    pub async fn get_chat_admins(&self, chat_id: i64) -> Vec<u64> {
-        let admins = self.bot.get_chat_administrators(ChatId(chat_id)).await;
-
-        if admins.is_err() {
-            return Vec::default();
-        }
-
-        admins.unwrap().iter().map(|m| m.user.id.0).collect::<Vec<u64>>()
-    }
-
     pub fn check_version(&self) {
-        let chat_id = self.config.chat_id;
+        let chat_id = self.config.bot.chat_id;
         if let Some(redis_version) = self.redis.get_app_version() {
             if redis_version != self.config.app_version {
-                block_on(self.bot.send_message(ChatId(chat_id), "😌 Я обновилься!").send())
+                block_on(self.bot.get().send_message(ChatId(chat_id), "😌 Я обновилься!").send())
                     .expect("Can't send message");
             }
         }
@@ -109,8 +85,8 @@ impl Application {
     }
 
     pub fn register_chat(&self) -> bool {
-        let chat_id = self.config.chat_id;
-        let admins = block_on(self.get_chat_admins(chat_id));
+        let chat_id = self.config.bot.chat_id;
+        let admins = block_on(self.bot.get_chat_admins(chat_id));
 
         self.redis.register_chat(chat_id);
         self.redis.set_chat_admins(chat_id, &admins);
@@ -120,49 +96,5 @@ impl Application {
         });
 
         true
-    }
-
-    pub async fn dispatch(&self, deps: DependencyMap) {
-        let chat_id = self.config.chat_id;
-        let handler = dptree::entry()
-            .branch(
-                Update::filter_message()
-                    .filter(|m: Message| m.chat.is_private())
-                    .filter_command::<PrivateCommand>()
-                    .endpoint(CommandsHandler::private_handle),
-            )
-            .branch(
-                Update::filter_chat_member()
-                    .filter(move |cm: ChatMemberUpdated| Application::filter_messages(&cm.chat, chat_id))
-                    .endpoint(MessagesHandler::chat_member_handle),
-            )
-            .branch(
-                Update::filter_message()
-                    .filter(move |m: Message| Application::filter_messages(&m.chat, chat_id))
-                    .filter_command::<PublicCommand>()
-                    .endpoint(CommandsHandler::public_handle),
-            )
-            .branch(
-                Update::filter_message()
-                    .filter(|m: Message| m.chat.is_private())
-                    .endpoint(MessagesHandler::private_handle),
-            )
-            .branch(
-                Update::filter_message()
-                    .filter(move |m: Message| Application::filter_messages(&m.chat, chat_id))
-                    .endpoint(MessagesHandler::public_handle),
-            )
-            .branch(Update::filter_callback_query().endpoint(CallbackHandler::handle));
-
-        Dispatcher::builder(self.bot.clone(), handler)
-            .dependencies(deps)
-            .enable_ctrlc_handler()
-            .build()
-            .dispatch()
-            .await
-    }
-
-    fn filter_messages(ch: &Chat, chat_id: i64) -> bool {
-        (ch.is_group() || ch.is_supergroup()) && ch.id.0 == chat_id
     }
 }

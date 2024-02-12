@@ -28,7 +28,7 @@ impl Scheduler {
         }
     }
 
-    pub fn init(&self) -> clokwerk::ScheduleHandle {
+    pub fn handle(&self) -> clokwerk::ScheduleHandle {
         let mut scheduler = clokwerk::Scheduler::with_tz(chrono::Utc);
 
         scheduler.every(Friday).at(&self.timings.week).once().run({
