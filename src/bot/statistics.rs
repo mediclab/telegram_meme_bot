@@ -200,7 +200,7 @@ impl Statistics {
                 period_text.0,
                 &placeholder,
                 period_text.1,
-                Messages::pluralize(count, ("лайк", "лайка", "лайков")),
+                Messages::pluralize(count, ("дизлайк", "дизлайка", "дизлайков")),
             );
 
             return Some(((placeholder, user_id), text));
