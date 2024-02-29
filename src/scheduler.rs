@@ -31,30 +31,42 @@ impl Scheduler {
     pub fn handle(&self) -> clokwerk::ScheduleHandle {
         let mut scheduler = clokwerk::Scheduler::with_tz(chrono::Utc);
 
-        scheduler.every(Friday).at(&self.timings.week).once().run({
-            let scheduler_app = self.app.clone();
-            move || {
-                let stats = Statistics::new(scheduler_app.clone());
-                stats.send(&Period::Week);
-            }
-        });
+        scheduler
+            .every(Friday)
+            .at(&self.timings.week)
+            .run({
+                let scheduler_app = self.app.clone();
+                move || {
+                    let stats = Statistics::new(scheduler_app.clone());
+                    stats.send(&Period::Week);
+                }
+            })
+            .once();
 
-        scheduler.every(1.day()).at(&self.timings.month).once().run({
-            let scheduler_app = self.app.clone();
-            move || {
-                let stats = Statistics::new(scheduler_app.clone());
-                stats.send(&Period::Month);
-            }
-        });
+        scheduler
+            .every(1.day())
+            .at(&self.timings.month)
+            .run({
+                let scheduler_app = self.app.clone();
+                move || {
+                    let stats = Statistics::new(scheduler_app.clone());
+                    stats.send(&Period::Month);
+                }
+            })
+            .once();
 
-        scheduler.every(1.day()).at(&self.timings.year).once().run({
-            let scheduler_app = self.app.clone();
-            move || {
-                let stats = Statistics::new(scheduler_app.clone());
-                stats.send(&Period::Year);
-            }
-        });
+        scheduler
+            .every(1.day())
+            .at(&self.timings.year)
+            .run({
+                let scheduler_app = self.app.clone();
+                move || {
+                    let stats = Statistics::new(scheduler_app.clone());
+                    stats.send(&Period::Year);
+                }
+            })
+            .once();
 
-        scheduler.watch_thread(Duration::from_millis(100))
+        scheduler.watch_thread(Duration::from_millis(1000))
     }
 }

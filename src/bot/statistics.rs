@@ -17,6 +17,7 @@ impl Statistics {
         match *period {
             Period::Week => {
                 if Period::is_today_a_friday() {
+                    info!("Send statistics of week");
                     self.send_by_period(period);
                 } else {
                     debug!("Today is not a friday!");
@@ -24,6 +25,7 @@ impl Statistics {
             }
             Period::Month => {
                 if Period::is_today_a_last_month_day() {
+                    info!("Send statistics of month");
                     self.send_by_period(period);
                 } else {
                     debug!("Today is not a last month day!");
@@ -31,6 +33,7 @@ impl Statistics {
             }
             Period::Year => {
                 if Period::is_today_a_last_year_day() {
+                    info!("Send statistics of year");
                     self.send_by_period(period);
                 } else {
                     debug!("Today is not a last year day!");
