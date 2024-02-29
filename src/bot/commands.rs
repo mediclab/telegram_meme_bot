@@ -100,6 +100,7 @@ impl CommandsHandler {
                     self.app.config.app_version
                 ),
             )
+            .disable_web_page_preview(true)
             .await?;
 
         Ok(())
