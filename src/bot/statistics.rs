@@ -62,8 +62,7 @@ impl Statistics {
             self.get_top_disliker(period),
         ]
         .into_iter()
-        .filter(|i| i.is_some())
-        .map(|i| i.unwrap_or_default())
+        .flatten()
         .collect::<Vec<((String, i64), String)>>();
 
         let message = messages.iter().map(|i| i.1.clone()).collect::<Vec<String>>();
@@ -80,16 +79,18 @@ impl Statistics {
             warn!("Can't get top statistics for this period!");
         }
 
-        if let Some((meme, text)) = self.get_top_disliked_meme(period) {
-            let msg = StatisticMessage {
-                chat_id: meme.chat_id,
-                user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
-                reply_id: Some(meme.msg_id.unwrap()),
-                message: text,
-            };
-            self.app.nats.publish(&msg);
-        } else {
-            warn!("Can't get top disliked mem for this period!");
+        if *period == Period::Week {
+            if let Some((meme, text)) = self.get_top_disliked_meme(period) {
+                let msg = StatisticMessage {
+                    chat_id: meme.chat_id,
+                    user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
+                    reply_id: Some(meme.msg_id.unwrap()),
+                    message: text,
+                };
+                self.app.nats.publish(&msg);
+            } else {
+                warn!("Can't get top disliked mem for this period!");
+            }
         }
     }
 

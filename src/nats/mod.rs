@@ -8,7 +8,6 @@ use futures::StreamExt;
 use serde_json::json;
 use teloxide::payloads::SendMessageSetters;
 use teloxide::prelude::Requester;
-use teloxide::types::{ChatId, MessageId};
 
 pub mod messages;
 
@@ -26,6 +25,8 @@ pub struct NatsConfig {
 pub struct NatsManager {
     nc: Client,
 }
+
+const TOPIC_NAME: &str = "statistics";
 
 impl NatsManager {
     pub fn new(config: &NatsConfig) -> Self {
@@ -45,23 +46,25 @@ impl NatsManager {
             let bot = bot_manager.clone();
 
             async move {
-                let mut subscriber = client.subscribe("statistics").await?;
+                let mut subscriber = client.subscribe(TOPIC_NAME).await?;
                 while let Some(msg) = subscriber.next().await {
                     let stats: StatisticMessage = serde_json::from_slice(&msg.payload)?;
-                    let mut message = stats.message;
+                    let mut message = stats.message.clone();
 
-                    for user in stats.user_ids {
+                    for user in &stats.user_ids {
                         let info = bot.get_chat_user(stats.chat_id, user.1).await;
                         message = message.replace(&user.0, &get_user_text(&info));
                     }
 
-                    let mut snd = bot.get().send_message(ChatId(stats.chat_id), message);
+                    let mut snd = bot.get().send_message(stats.chat(), message);
 
-                    if let Some(reply_id) = stats.reply_id {
-                        snd = snd.reply_to_message_id(MessageId(reply_id as i32));
+                    if let Some(reply) = stats.reply_message() {
+                        snd = snd.reply_to_message_id(reply);
                     }
 
-                    snd.await.expect("Can't send message");
+                    if snd.await.is_err() {
+                        error!("Can't send statistic message from NATS")
+                    }
                 }
 
                 Ok::<(), async_nats::Error>(())
@@ -70,7 +73,7 @@ impl NatsManager {
     }
 
     pub fn publish(&self, msg: &StatisticMessage) {
-        if block_on(self.nc.publish("statistics", json!(msg).to_string().into())).is_err() {
+        if block_on(self.nc.publish(TOPIC_NAME, json!(msg).to_string().into())).is_err() {
             error!("Can't publish message to NATS!")
         }
     }
