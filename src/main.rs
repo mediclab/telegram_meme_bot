@@ -55,7 +55,7 @@ async fn main() {
 
     let args = Cli::parse();
     let app = Arc::new(Application::new());
-    let scheduler = Scheduler::new(app.clone(), "16:05", "17:05", "18:05");
+    let scheduler = Scheduler::new(app.clone());
 
     app.register_chat();
     app.check_version();
@@ -77,15 +77,13 @@ async fn main() {
             info!("MemeBot version = {}", &app.config.app_version);
 
             info!("Starting scheduler...");
-            let scheduler_handle = scheduler.handle();
+            scheduler.handle().await.expect("Can't run scheduler");
 
             info!("Starting subscriber...");
             app.nats.subscriber(&app.bot);
 
             info!("Starting dispatch...");
             app.bot.dispatch(dptree::deps![app.clone()]).await;
-
-            scheduler_handle.stop();
 
             info!("Shutdown bot...");
         }

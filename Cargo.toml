@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.12.4"
+version = "0.12.5"
 edition = "2021"
 
 [profile.docker]
@@ -29,7 +29,7 @@ diesel = { version = "2.1", features = ["postgres", "extras"] }
 now = "0.1"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-redis = { version = "0.24", features = ["tokio-comp", "r2d2"] }
+redis = { version = "0.25", features = ["tokio-comp", "r2d2"] }
 futures = "0.3"
 serde = "1.0"
 serde_json = "1.0"
@@ -39,6 +39,6 @@ anyhow = "1.0"
 itertools = "0.12"
 diesel-async = { version = "0.4", features = ["postgres", "deadpool"] }
 sentry = "0.32"
-clokwerk = "0.4"
 envconfig = "0.10"
 async-nats = "0.34"
+tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
