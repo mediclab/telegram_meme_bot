@@ -87,7 +87,7 @@ impl Period {
     pub fn is_today_a_last_month_day() -> bool {
         let now = Utc::now();
 
-        if (now.month() != (now + Duration::days(3)).month()) && Period::is_today_a_friday() {
+        if (now.month() != (now + Duration::try_days(3).unwrap()).month()) && Period::is_today_a_friday() {
             return true;
         }
 
@@ -112,8 +112,8 @@ impl Period {
     }
 
     fn week_dates(&self) -> (DateTime<Utc>, DateTime<Utc>) {
-        let start_week = Utc::now().beginning_of_week() + Duration::days(-3);
-        let end_week = Utc::now().end_of_week() + Duration::days(-2);
+        let start_week = Utc::now().beginning_of_week() + Duration::try_days(-3).unwrap();
+        let end_week = Utc::now().end_of_week() + Duration::try_days(-2).unwrap();
 
         self.from(start_week, end_week)
     }
@@ -134,17 +134,17 @@ impl Period {
 
     fn get_last_work_day(&self, date: &DateTime<Utc>) -> DateTime<Utc> {
         match date.weekday() {
-            Weekday::Sat => *date + Duration::days(-1),
-            Weekday::Sun => *date + Duration::days(-2),
+            Weekday::Sat => *date + Duration::try_days(-1).unwrap(),
+            Weekday::Sun => *date + Duration::try_days(-2).unwrap(),
             _ => *date,
         }
     }
 
     fn get_first_work_day(&self, date: &DateTime<Utc>) -> DateTime<Utc> {
         match date.weekday() {
-            Weekday::Sat => *date + Duration::days(-1),
-            Weekday::Sun => *date + Duration::days(-2),
-            Weekday::Mon => *date + Duration::days(-3),
+            Weekday::Sat => *date + Duration::try_days(-1).unwrap(),
+            Weekday::Sun => *date + Duration::try_days(-2).unwrap(),
+            Weekday::Mon => *date + Duration::try_days(-3).unwrap(),
             _ => *date,
         }
     }

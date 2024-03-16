@@ -1,72 +1,62 @@
 use crate::app::utils::Period;
 use crate::app::Application;
 use crate::bot::statistics::Statistics;
-use clokwerk::{Interval::Friday, Job, TimeUnits};
+use anyhow::Result;
 use std::sync::Arc;
-use std::time::Duration;
+use tokio_cron_scheduler::{Job, JobScheduler};
 
 pub struct Scheduler {
-    timings: SchedulerTimings,
     app: Arc<Application>,
 }
 
-pub struct SchedulerTimings {
-    week: String,
-    month: String,
-    year: String,
-}
-
 impl Scheduler {
-    pub fn new(app: Arc<Application>, week: &str, month: &str, year: &str) -> Self {
-        Scheduler {
-            timings: SchedulerTimings {
-                week: week.to_string(),
-                month: month.to_string(),
-                year: year.to_string(),
-            },
-            app,
-        }
+    pub fn new(app: Arc<Application>) -> Self {
+        Scheduler { app }
     }
 
-    pub fn handle(&self) -> clokwerk::ScheduleHandle {
-        let mut scheduler = clokwerk::Scheduler::with_tz(chrono::Utc);
+    pub async fn handle(&self) -> Result<JobScheduler> {
+        let mut scheduler = JobScheduler::new().await?;
 
         scheduler
-            .every(Friday)
-            .at(&self.timings.week)
-            .run({
+            .add(Job::new("00 05 16 * * Fri", {
                 let scheduler_app = self.app.clone();
-                move || {
+                move |_uuid, _l| {
                     let stats = Statistics::new(scheduler_app.clone());
                     stats.send(&Period::Week);
                 }
-            })
-            .once();
+            })?)
+            .await?;
 
         scheduler
-            .every(1.day())
-            .at(&self.timings.month)
-            .run({
+            .add(Job::new("00 05 17 * * *", {
                 let scheduler_app = self.app.clone();
-                move || {
+                move |_uuid, _l| {
                     let stats = Statistics::new(scheduler_app.clone());
                     stats.send(&Period::Month);
                 }
-            })
-            .once();
+            })?)
+            .await?;
 
         scheduler
-            .every(1.day())
-            .at(&self.timings.year)
-            .run({
+            .add(Job::new("00 05 18 * * *", {
                 let scheduler_app = self.app.clone();
-                move || {
+                move |_uuid, _l| {
                     let stats = Statistics::new(scheduler_app.clone());
                     stats.send(&Period::Year);
                 }
-            })
-            .once();
+            })?)
+            .await?;
 
-        scheduler.watch_thread(Duration::from_millis(1000))
+        scheduler.shutdown_on_ctrl_c();
+
+        scheduler.set_shutdown_handler(Box::new(|| {
+            Box::pin(async move {
+                info!("Scheduler shutdown...");
+            })
+        }));
+
+        scheduler.start().await?;
+
+        Ok(scheduler)
     }
 }
