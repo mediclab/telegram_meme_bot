@@ -42,6 +42,12 @@ impl CommandsHandler {
     pub async fn public_handle(bot: Bot, msg: Message, cmd: PublicCommand, app: Arc<Application>) -> Result<()> {
         let handler = CommandsHandler { app, bot, msg };
 
+        if !handler.app.redis.is_chat_registered(handler.msg.chat.id.0) {
+            warn!("Chat {} is not registered", handler.msg.chat.id.0);
+
+            return Ok(());
+        }
+
         handler.bot.delete_message(handler.msg.chat.id, handler.msg.id).await?;
 
         match cmd {

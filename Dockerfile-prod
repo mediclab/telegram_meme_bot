@@ -17,7 +17,7 @@ FROM debian:bullseye-slim
 ARG BOT_VERSION=unknown
 ENV BOT_VERSION=$BOT_VERSION
 
-MAINTAINER "mediclab"
+MAINTAINER mediclab
 LABEL org.opencontainers.image.authors="mediclab <m@mdlb.cc>"
 LABEL version=$BOT_VERSION
 LABEL description="Bot for mem-chats"
