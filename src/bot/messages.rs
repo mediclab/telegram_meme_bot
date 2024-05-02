@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use teloxide::types::{ChatMemberKind, ForwardedFrom};
+use teloxide::types::ChatMemberKind;
 use teloxide::{
     prelude::*,
     types::{InputFile, MessageKind, PhotoSize, Video},
@@ -34,28 +34,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn private_handle(bot: Bot, msg: Message, app: Arc<Application>) -> Result<()> {
-        let handler = MessagesHandler { app, bot, msg };
-
-        if handler.msg.forward().is_none() {
-            return Ok(());
-        }
-
-        debug!("{:?}", handler.msg.forward());
-        debug!("{:?}", handler.msg);
-
-        let from_msg = handler.msg.forward().unwrap();
-
-        if let ForwardedFrom::Chat(chat) = &from_msg.from {
-            if !handler.app.redis.is_chat_registered(chat.id.0) {
-                return Ok(());
-            }
-
-            let chat_admins = handler.app.redis.get_chat_admins(chat.id.0);
-
-            if chat_admins.contains(&handler.msg.from().unwrap().id.0) {}
-        }
-
+    pub async fn private_handle() -> Result<()> {
         Ok(())
     }
 
