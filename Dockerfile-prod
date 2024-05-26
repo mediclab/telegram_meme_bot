@@ -35,8 +35,6 @@ COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
 
 WORKDIR /app
 
-COPY ./migrations /app/migrations
-COPY ./diesel.toml /app/diesel.toml
 COPY ./initd.sh /app/initd.sh
 
 ENV LD_LIBRARY_PATH=/usr/local/lib

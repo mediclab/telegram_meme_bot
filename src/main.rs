@@ -11,6 +11,7 @@ use teloxide::dptree;
 
 use crate::app::Application;
 use crate::bot::statistics::Statistics;
+use crate::database::{Database, INSTANCE};
 use crate::scheduler::Scheduler;
 use app::utils::Period;
 
@@ -56,6 +57,10 @@ async fn main() {
     let args = Cli::parse();
     let app = Arc::new(Application::new());
     let scheduler = Scheduler::new(app.clone());
+
+    let db = Database::new(&app.config.db_url).await;
+    db.migrate().await.expect("Can't migrate databaase");
+    INSTANCE.set(db).expect("Can't set database");
 
     app.register_chat();
     app.check_version();

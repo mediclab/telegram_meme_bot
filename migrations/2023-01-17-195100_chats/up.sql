@@ -1,7 +1,0 @@
-CREATE TABLE IF NOT EXISTS chats
-(
-    chat_id BIGSERIAL PRIMARY KEY,
-    chatname VARCHAR(256) NOT NULL,
-    description VARCHAR(256),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);

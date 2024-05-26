@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:14-alpine
-    command: ["postgres", "-c", "log_statement=all"]
+    command: [ "postgres", "-c", "log_statement=all" ]
     environment:
       POSTGRES_USER: meme_bot
       POSTGRES_DB: meme_bot
@@ -39,7 +37,7 @@ services:
     build:
       dockerfile: "./Dockerfile"
       context: .
-    command: sh -c "diesel migration run && cargo run --profile docker -- --start"
+    command: sh -c "cargo run --profile docker -- --start"
     #command: sh -c "tail -f /dev/null"
     working_dir: /app
     volumes:

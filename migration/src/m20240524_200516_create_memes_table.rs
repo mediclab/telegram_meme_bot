@@ -1,0 +1,117 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Memes::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Memes::Uuid)
+                            .uuid()
+                            .not_null()
+                            .default(Expr::cust("gen_random_uuid()"))
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Memes::MsgId).big_integer().null())
+                    .col(ColumnDef::new(Memes::UserId).big_integer().not_null())
+                    .col(ColumnDef::new(Memes::ChatId).big_integer().not_null())
+                    .col(ColumnDef::new(Memes::Photos).json_binary().null())
+                    .col(ColumnDef::new(Memes::LongHash).string_len(256).null())
+                    .col(ColumnDef::new(Memes::ShortHash).string_len(4).null())
+                    .col(
+                        ColumnDef::new(Memes::PostedAt)
+                            .timestamp()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Memes::UpdatedAt)
+                            .timestamp()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("memes_msg_id_idx")
+                    .table(Memes::Table)
+                    .col(Memes::MsgId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("memes_user_id_chat_id_idx")
+                    .table(Memes::Table)
+                    .col(Memes::UserId)
+                    .col(Memes::ChatId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("memes_short_hash_idx")
+                    .table(Memes::Table)
+                    .col(Memes::ShortHash)
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_index(
+                Index::drop()
+                    .table(Memes::Table)
+                    .if_exists()
+                    .name("memes_msg_id_idx")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_index(
+                Index::drop()
+                    .table(Memes::Table)
+                    .if_exists()
+                    .name("memes_user_id_chat_id_idx")
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .drop_index(
+                Index::drop()
+                    .table(Memes::Table)
+                    .if_exists()
+                    .name("memes_short_hash_idx")
+                    .to_owned(),
+            )
+            .await?;
+        manager.drop_table(Table::drop().table(Memes::Table).to_owned()).await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Memes {
+    Table,
+    Uuid,
+    MsgId,
+    UserId,
+    ChatId,
+    Photos,
+    LongHash,
+    ShortHash,
+    PostedAt,
+    UpdatedAt,
+}
