@@ -7,6 +7,7 @@ use teloxide::prelude::*;
 use utils::from_binary_to_hex;
 
 use crate::bot::{BotConfig, BotManager};
+use crate::database::entity::prelude::*;
 use crate::database::DBManager;
 use crate::nats::{NatsConfig, NatsManager};
 use crate::redis::RedisManager;
@@ -91,9 +92,7 @@ impl Application {
         self.redis.register_chat(chat_id);
         self.redis.set_chat_admins(chat_id, &admins);
 
-        admins.into_iter().for_each(|admin| {
-            self.database.add_chat_admin(chat_id, admin);
-        });
+        ChatAdmins::add_admins(chat_id, &admins);
 
         true
     }

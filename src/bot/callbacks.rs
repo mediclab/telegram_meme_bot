@@ -7,7 +7,7 @@ use teloxide::prelude::*;
 use crate::app::Application;
 use crate::bot::markups::*;
 use crate::bot::Bot;
-use crate::database::models::Meme;
+use crate::database::entity::{meme_likes::MemeLikesCountAll, memes, prelude::Memes};
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,
@@ -42,7 +42,7 @@ impl CallbackHandler {
         let data: MemeCallback =
             serde_json::from_str(&self.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
-        let meme = self.app.database.get_meme(&data.uuid)?;
+        let meme = Memes::get(data.uuid).await;
 
         match data.op {
             CallbackOperations::Like => {
@@ -62,49 +62,39 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn like(&self, meme: &Meme) -> Result<()> {
+    pub async fn like(&self, meme: &memes::Model) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
-        let repository = &self.app.database;
 
-        if repository.like_exists(user_id, &meme.uuid) {
-            repository.cancel_like(user_id, &meme.uuid);
+        if meme.like_exists(user_id).await {
+            meme.cancel_like(user_id).await;
         } else {
-            repository.like(user_id, &meme.uuid);
+            meme.like(user_id).await;
         }
 
-        let likes = (
-            repository.count_likes(&meme.uuid),
-            repository.count_dislikes(&meme.uuid),
-        );
-
-        self.update_message(meme, &msg, likes).await?;
+        let counts = meme.count_all_likes().await;
+        self.update_message(meme, &msg, counts).await?;
 
         Ok(())
     }
 
-    pub async fn dislike(&self, meme: &Meme) -> Result<()> {
+    pub async fn dislike(&self, meme: &memes::Model) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
-        let repository = &self.app.database;
 
-        if repository.dislike_exists(user_id, &meme.uuid) {
-            repository.cancel_dislike(user_id, &meme.uuid);
+        if meme.dislike_exists(user_id).await {
+            meme.cancel_dislike(user_id).await;
         } else {
-            repository.dislike(user_id, &meme.uuid);
+            meme.dislike(user_id).await;
         }
 
-        let likes = (
-            repository.count_likes(&meme.uuid),
-            repository.count_dislikes(&meme.uuid),
-        );
-
-        self.update_message(meme, &msg, likes).await?;
+        let counts = meme.count_all_likes().await;
+        self.update_message(meme, &msg, counts).await?;
 
         Ok(())
     }
 
-    pub async fn none(&self, meme: &Meme) -> Result<()> {
+    pub async fn none(&self, meme: &memes::Model) -> Result<()> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if !self.can_user_interact(meme) {
@@ -127,7 +117,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn delete(&self, meme: &Meme) -> Result<()> {
+    pub async fn delete(&self, meme: &memes::Model) -> Result<()> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if !self.can_user_interact(meme) {
@@ -154,9 +144,8 @@ impl CallbackHandler {
         Ok(())
     }
 
-    async fn update_message(&self, meme: &Meme, msg: &Message, counts: (i64, i64)) -> Result<()> {
-        let (likes, dislikes) = counts;
-        let meme_markup = MemeMarkup::new(likes, dislikes, meme.uuid);
+    async fn update_message(&self, meme: &memes::Model, msg: &Message, counts: MemeLikesCountAll) -> Result<()> {
+        let meme_markup = MemeMarkup::new(counts.likes, counts.dislikes, meme.uuid);
 
         self.bot
             .edit_message_reply_markup(msg.chat.id, msg.id)
@@ -171,7 +160,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    fn can_user_interact(&self, meme: &Meme) -> bool {
+    fn can_user_interact(&self, meme: &memes::Model) -> bool {
         let admins = self.app.redis.get_chat_admins(self.callback.chat_id().unwrap().0);
         let is_user_admin = admins.contains(&self.callback.from.id.0);
 
