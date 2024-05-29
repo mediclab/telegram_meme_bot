@@ -7,7 +7,7 @@ use teloxide::prelude::*;
 use crate::app::Application;
 use crate::bot::markups::*;
 use crate::bot::Bot;
-use crate::database::entity::{meme_likes::MemeLikesCountAll, memes, prelude::Memes};
+use crate::database::entity::{meme_likes::MemeLikesCountAll, memes::Model as MemeModel, prelude::Memes};
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,
@@ -42,7 +42,14 @@ impl CallbackHandler {
         let data: MemeCallback =
             serde_json::from_str(&self.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
-        let meme = Memes::get(data.uuid).await;
+        let meme = match Memes::get_by_id(data.uuid).await {
+            None => {
+                warn!("Meme {} not found!", &data.uuid);
+
+                return Ok(());
+            }
+            Some(m) => m,
+        };
 
         match data.op {
             CallbackOperations::Like => {
@@ -62,7 +69,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn like(&self, meme: &memes::Model) -> Result<()> {
+    pub async fn like(&self, meme: &MemeModel) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
 
@@ -72,13 +79,16 @@ impl CallbackHandler {
             meme.like(user_id).await;
         }
 
-        let counts = meme.count_all_likes().await;
-        self.update_message(meme, &msg, counts).await?;
+        if let Some(counts) = meme.count_all_likes().await {
+            self.update_message(meme, &msg, counts).await?;
+        } else {
+            warn!("Can't update counts on meme: {}", &meme.uuid)
+        }
 
         Ok(())
     }
 
-    pub async fn dislike(&self, meme: &memes::Model) -> Result<()> {
+    pub async fn dislike(&self, meme: &MemeModel) -> Result<()> {
         let msg = self.callback.message.clone().unwrap();
         let user_id = self.callback.from.id.0 as i64;
 
@@ -88,13 +98,16 @@ impl CallbackHandler {
             meme.dislike(user_id).await;
         }
 
-        let counts = meme.count_all_likes().await;
-        self.update_message(meme, &msg, counts).await?;
+        if let Some(counts) = meme.count_all_likes().await {
+            self.update_message(meme, &msg, counts).await?;
+        } else {
+            warn!("Can't update counts on meme: {}", &meme.uuid)
+        }
 
         Ok(())
     }
 
-    pub async fn none(&self, meme: &memes::Model) -> Result<()> {
+    pub async fn none(&self, meme: &MemeModel) -> Result<()> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if !self.can_user_interact(meme) {
@@ -117,7 +130,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    pub async fn delete(&self, meme: &memes::Model) -> Result<()> {
+    pub async fn delete(&self, meme: &MemeModel) -> Result<()> {
         let msg = self.callback.message.as_ref().unwrap();
 
         if !self.can_user_interact(meme) {
@@ -144,7 +157,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    async fn update_message(&self, meme: &memes::Model, msg: &Message, counts: MemeLikesCountAll) -> Result<()> {
+    async fn update_message(&self, meme: &MemeModel, msg: &Message, counts: MemeLikesCountAll) -> Result<()> {
         let meme_markup = MemeMarkup::new(counts.likes, counts.dislikes, meme.uuid);
 
         self.bot
@@ -160,7 +173,7 @@ impl CallbackHandler {
         Ok(())
     }
 
-    fn can_user_interact(&self, meme: &memes::Model) -> bool {
+    fn can_user_interact(&self, meme: &MemeModel) -> bool {
         let admins = self.app.redis.get_chat_admins(self.callback.chat_id().unwrap().0);
         let is_user_admin = admins.contains(&self.callback.from.id.0);
 

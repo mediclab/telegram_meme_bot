@@ -18,6 +18,7 @@ pub mod commands;
 pub mod markups;
 pub mod messages;
 pub mod statistics;
+pub mod types;
 
 pub type Bot = DefaultParseMode<teloxide::Bot>;
 

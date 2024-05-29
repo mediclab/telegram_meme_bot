@@ -14,6 +14,7 @@ use sea_orm::{ConnectOptions, Database as SeaDatabase, DatabaseConnection};
 use uuid::Uuid;
 
 use crate::app::utils::Period;
+use crate::database::entity::meme_likes::MemeLikeOperation;
 use crate::database::{
     models::*,
     schema::{
@@ -90,34 +91,10 @@ impl DBManager {
         self.get_pool().expect("Can't get connection from pool")
     }
 
-    pub fn add_meme(&self, meme: &AddMeme) -> Result<Meme, Error> {
-        diesel::insert_into(MemesSchema::table)
-            .values(meme)
-            .get_result(&mut *self.get_connection())
-    }
-
-    pub fn replace_meme_msg_id(&self, uuid: &Uuid, msg_id: i64) -> bool {
-        diesel::update(MemesSchema::table)
-            .filter(MemesSchema::dsl::uuid.eq(uuid))
-            .set((
-                MemesSchema::dsl::msg_id.eq(msg_id),
-                MemesSchema::dsl::updated_at.eq(Utc::now().naive_utc()),
-            ))
-            .execute(&mut *self.get_connection())
-            .is_ok()
-    }
-
     pub fn get_memes_by_short_hash(&self, short_hash: &str) -> Result<Vec<Meme>, Error> {
         MemesSchema::table
             .filter(MemesSchema::dsl::short_hash.eq(short_hash))
             .load(&mut *self.get_connection())
-    }
-
-    pub fn get_meme_by_msg_id(&self, msg_id: i64, chat_id: i64) -> Result<Meme, Error> {
-        MemesSchema::table
-            .filter(MemesSchema::dsl::msg_id.eq(msg_id))
-            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
-            .first(&mut *self.get_connection())
     }
 
     pub fn delete_meme(&self, uuid: &Uuid) -> bool {
@@ -132,25 +109,6 @@ impl DBManager {
             .select(ChatAdminsSchema::dsl::chat_id)
             .filter(ChatAdminsSchema::dsl::user_id.eq(user_id as i64))
             .load(&mut *self.get_connection())
-    }
-
-    pub fn get_top_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
-        let (start, end) = period.dates();
-
-        MemesSchema::table
-            .left_join(MemeLikesSchema::table)
-            .group_by((MemesSchema::dsl::uuid, MemesSchema::dsl::posted_at))
-            .filter(MemesSchema::dsl::posted_at.ge(start.naive_utc()))
-            .filter(MemesSchema::dsl::posted_at.le(end.naive_utc()))
-            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Like.id()))
-            .select((
-                MemesSchema::all_columns,
-                dsl::sql::<BigInt>("SUM(\"meme_likes\".\"num\") as likes"),
-            ))
-            .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") > 0"))
-            .order_by(dsl::sql::<BigInt>("likes DESC"))
-            .then_order_by(MemesSchema::dsl::posted_at.desc())
-            .first(&mut *self.get_connection())
     }
 
     pub fn get_top_selflikes(&self, period: &Period) -> Result<(i64, i64), Error> {
@@ -203,68 +161,5 @@ impl DBManager {
             .having(dsl::sql::<Bool>("COUNT(\"memes\".\"uuid\") > 0"))
             .order_by(dsl::sql::<BigInt>("cnt DESC"))
             .first(&mut *self.get_connection())
-    }
-
-    pub fn add_user(&self, user: &AddUser) -> Result<User, Error> {
-        diesel::insert_into(UsersSchema::table)
-            .values(user)
-            .on_conflict(UsersSchema::dsl::user_id)
-            .do_update()
-            .set(user)
-            .get_result(&mut *self.get_connection())
-    }
-
-    pub fn delete_user(&self, user_id: i64) -> bool {
-        diesel::update(UsersSchema::table)
-            .filter(UsersSchema::dsl::user_id.eq(user_id))
-            .set(UsersSchema::dsl::deleted_at.eq(Utc::now().naive_utc()))
-            .execute(&mut *self.get_connection())
-            .is_ok()
-    }
-
-    pub fn get_max_disliked_meme(&self, period: &Period) -> Result<(Meme, i64), Error> {
-        let (start, end) = period.dates();
-
-        MemeLikesSchema::table
-            .inner_join(MemesSchema::table)
-            .group_by(MemesSchema::dsl::uuid)
-            .filter(MemeLikesSchema::dsl::created_at.ge(start.naive_utc()))
-            .filter(MemeLikesSchema::dsl::created_at.le(end.naive_utc()))
-            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Dislike.id()))
-            .select((
-                MemesSchema::all_columns,
-                dsl::sql::<BigInt>("ABS(SUM(\"meme_likes\".\"num\")) as sum"),
-            ))
-            .having(dsl::sql::<Bool>("SUM(\"meme_likes\".\"num\") < -5"))
-            .order_by(dsl::sql::<BigInt>("sum DESC"))
-            .first(&mut *self.get_connection())
-    }
-
-    pub fn get_memes_count(&self, chat_id: i64) -> i64 {
-        MemesSchema::table
-            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
-            .count()
-            .get_result(&mut *self.get_connection())
-            .unwrap_or(0)
-    }
-
-    pub fn get_meme_likes_count(&self, chat_id: i64) -> i64 {
-        MemeLikesSchema::table
-            .inner_join(MemesSchema::table)
-            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
-            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Like.id()))
-            .count()
-            .get_result(&mut *self.get_connection())
-            .unwrap_or(0)
-    }
-
-    pub fn get_meme_dislikes_count(&self, chat_id: i64) -> i64 {
-        MemeLikesSchema::table
-            .inner_join(MemesSchema::table)
-            .filter(MemesSchema::dsl::chat_id.eq(chat_id))
-            .filter(MemeLikesSchema::dsl::num.eq(MemeLikeOperation::Dislike.id()))
-            .count()
-            .get_result(&mut *self.get_connection())
-            .unwrap_or(0)
     }
 }

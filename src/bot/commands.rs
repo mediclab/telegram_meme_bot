@@ -5,6 +5,7 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::app::Application;
 use crate::bot::Bot;
+use crate::database::entity::prelude::{MemeLikes, Memes};
 
 use super::markups::*;
 
@@ -180,7 +181,14 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
-                let meme = self.app.database.get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)?;
+                let meme = match Memes::get_by_msg_id(repl.chat.id.0, repl.id.0 as u64).await {
+                    None => {
+                        warn!("Meme not found by msg_id: {}!", repl.id.0);
+
+                        return Ok(());
+                    }
+                    Some(m) => m,
+                };
                 let user_res = self.bot.get_chat_member(self.msg.chat.id, meme.user_id()).await;
                 let mut user_text = String::new();
 
@@ -240,11 +248,14 @@ impl CommandsHandler {
                     return Ok(());
                 }
 
-                let meme = self
-                    .app
-                    .database
-                    .get_meme_by_msg_id(repl.id.0 as i64, repl.chat.id.0)
-                    .unwrap();
+                let meme = match Memes::get_by_msg_id(repl.chat.id.0, repl.id.0 as u64).await {
+                    None => {
+                        warn!("Meme not found by msg_id: {}!", repl.id.0);
+
+                        return Ok(());
+                    }
+                    Some(m) => m,
+                };
 
                 self.bot
                     .send_message(self.msg.chat.id, String::from("Ты хочешь удалить мем?"))
@@ -286,9 +297,14 @@ impl CommandsHandler {
             return Ok(());
         }
 
-        let memes_count = self.app.database.get_memes_count(self.msg.chat.id.0);
-        let likes_count = self.app.database.get_meme_likes_count(self.msg.chat.id.0);
-        let dislikes_count = self.app.database.get_meme_dislikes_count(self.msg.chat.id.0);
+        let memes_count = Memes::get_count(self.msg.chat.id.0).await;
+        let mut likes_count = 0;
+        let mut dislikes_count = 0;
+
+        if let Some(like_counts) = MemeLikes::count_all(None).await {
+            likes_count = like_counts.likes;
+            dislikes_count = like_counts.dislikes;
+        }
 
         let message = include_str!("../../messages/stats.in")
             .replace("{memes_count}", &memes_count.to_string())

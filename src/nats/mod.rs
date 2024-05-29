@@ -72,8 +72,13 @@ impl NatsManager {
         });
     }
 
-    pub fn publish(&self, msg: &StatisticMessage) {
-        if block_on(self.nc.publish(TOPIC_NAME, json!(msg).to_string().into())).is_err() {
+    pub async fn publish(&self, msg: &StatisticMessage) {
+        if self
+            .nc
+            .publish(TOPIC_NAME, json!(msg).to_string().into())
+            .await
+            .is_err()
+        {
             error!("Can't publish message to NATS!")
         }
     }

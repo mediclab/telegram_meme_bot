@@ -1,12 +1,11 @@
 use chrono::prelude::*;
 use diesel::prelude::*;
 use serde_json::Value as Json;
-use teloxide::types::{Chat as TgChat, ChatId, Message, MessageId, User as TgUser, UserId};
+use teloxide::types::{ChatId, MessageId, UserId};
 use uuid::Uuid;
 
 use crate::database::schema::{
-    chat_admins as ChatAdminsSchema, chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema,
-    users as UsersSchema,
+    chats as ChatsSchema, meme_likes as MemeLikesSchema, memes as MemesSchema, users as UsersSchema,
 };
 
 #[derive(Debug, Selectable, Queryable, Identifiable)]
@@ -20,16 +19,6 @@ pub struct Meme {
     pub photos: Option<Json>,
     pub posted_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
-    pub long_hash: Option<String>,
-    pub short_hash: Option<String>,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = MemesSchema)]
-pub struct AddMeme {
-    pub user_id: i64,
-    pub chat_id: i64,
-    pub photos: Option<Json>,
     pub long_hash: Option<String>,
     pub short_hash: Option<String>,
 }
@@ -48,26 +37,6 @@ impl Meme {
     }
 }
 
-impl AddMeme {
-    pub fn new_from_tg(msg: &Message, l_hash: &Option<String>, s_hash: &Option<String>) -> Self {
-        let json = if msg.photo().is_some() {
-            Option::from(serde_json::json!(msg.photo()))
-        } else if msg.video().is_some() {
-            Option::from(serde_json::json!(msg.video()))
-        } else {
-            None
-        };
-
-        Self {
-            user_id: msg.from().unwrap().id.0 as i64,
-            chat_id: msg.chat.id.0,
-            photos: json,
-            long_hash: l_hash.clone(),
-            short_hash: s_hash.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable, Associations)]
 #[diesel(table_name = MemeLikesSchema)]
 #[diesel(belongs_to(Meme, foreign_key = meme_uuid))]
@@ -78,20 +47,6 @@ pub struct MemeLike {
     pub user_id: i64,
     pub num: i16,
     pub created_at: Option<NaiveDateTime>,
-}
-
-pub enum MemeLikeOperation {
-    Like,
-    Dislike,
-}
-
-impl MemeLikeOperation {
-    pub fn id(&self) -> i16 {
-        match *self {
-            MemeLikeOperation::Like => 1,
-            MemeLikeOperation::Dislike => -1,
-        }
-    }
 }
 
 #[derive(Debug, Selectable, Queryable, Identifiable, Insertable)]
@@ -106,39 +61,6 @@ pub struct User {
     pub created_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Insertable, AsChangeset)]
-#[diesel(table_name = UsersSchema)]
-pub struct AddUser {
-    pub user_id: i64,
-    pub username: Option<String>,
-    pub firstname: String,
-    pub lastname: Option<String>,
-    pub deleted_at: Option<NaiveDateTime>,
-}
-
-impl AddUser {
-    pub fn new(user_id: i64, name: &str) -> Self {
-        Self {
-            user_id,
-            username: None,
-            firstname: name.to_string(),
-            lastname: None,
-            deleted_at: None,
-        }
-    }
-    pub fn new_from_tg(user: &TgUser) -> Self {
-        let u = user.clone();
-
-        Self {
-            user_id: u.id.0 as i64,
-            username: u.username,
-            firstname: u.first_name,
-            lastname: u.last_name,
-            deleted_at: None,
-        }
-    }
-}
-
 #[derive(Debug, Selectable, Queryable, Identifiable)]
 #[diesel(table_name = ChatsSchema)]
 #[diesel(primary_key(chat_id))]
@@ -149,31 +71,4 @@ pub struct Chat {
     pub created_at: Option<NaiveDateTime>,
     pub title: Option<String>,
     pub deleted_at: Option<NaiveDateTime>,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = ChatsSchema)]
-pub struct AddChat {
-    pub chat_id: i64,
-    pub chatname: Option<String>,
-    pub description: Option<String>,
-    pub title: Option<String>,
-}
-
-impl AddChat {
-    pub fn new_from_tg(chat: &TgChat) -> Self {
-        Self {
-            chat_id: chat.id.0,
-            chatname: chat.username().map(|d| d.to_string()),
-            description: chat.description().map(|d| d.to_string()),
-            title: chat.title().map(|d| d.to_string()),
-        }
-    }
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = ChatAdminsSchema)]
-pub struct AddChatAdmin {
-    pub chat_id: i64,
-    pub user_id: i64,
 }

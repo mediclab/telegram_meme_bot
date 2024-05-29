@@ -9,7 +9,8 @@ use teloxide::{
 
 use crate::app::{imghash::ImageHash, utils as Utils, Application};
 use crate::bot::{markups::*, Bot};
-use crate::database::models::{AddMeme, AddUser, Meme};
+use crate::database::entity::prelude::{Memes, Users};
+use crate::database::models::Meme;
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -51,7 +52,7 @@ impl MessagesHandler {
                 )
                 .await?;
 
-                let _ = app.database.add_user(&AddUser::new_from_tg(&member.user));
+                Users::add(&member.user).await;
             }
             ChatMemberKind::Left | ChatMemberKind::Banned(_) => {
                 let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
@@ -63,7 +64,7 @@ impl MessagesHandler {
                 )
                 .await?;
 
-                app.database.delete_user(member.user.id.0 as i64);
+                Users::delete(member.user.id.0 as i64).await;
             }
             _ => {}
         }
@@ -158,11 +159,13 @@ impl MessagesHandler {
             return Ok(());
         }
 
-        let meme = self
-            .app
-            .database
-            .add_meme(&AddMeme::new_from_tg(&self.msg, &hash, &hash_min))
-            .expect("Can't add photo meme");
+        let meme = match Memes::add(&self.msg, &hash, &hash_min).await {
+            None => {
+                warn!("Meme is empty after insert!");
+                return Ok(());
+            }
+            Some(m) => m,
+        };
 
         let markup = MemeMarkup::new(0, 0, meme.uuid);
         let caption = if let Some(caption) = self.msg.caption() {
@@ -178,7 +181,7 @@ impl MessagesHandler {
             .reply_markup(markup.get_markup())
             .await?;
 
-        self.app.database.replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+        meme.replace_msg_id(bot_msg.id.0 as i64).await;
 
         if s_meme.0 > 0 {
             let messages = Utils::Messages::load(include_str!("../../messages/similar_meme.in"));
@@ -208,15 +211,13 @@ impl MessagesHandler {
         let user = self.msg.from().unwrap();
         let user_text = Utils::get_user_text(user);
 
-        let meme = self
-            .app
-            .database
-            .add_meme(&AddMeme::new_from_tg(
-                &self.msg,
-                &None as &Option<String>,
-                &None as &Option<String>,
-            ))
-            .expect("Can't add video meme");
+        let meme = match Memes::add(&self.msg, &None, &None).await {
+            None => {
+                warn!("Meme is empty after insert!");
+                return Ok(());
+            }
+            Some(m) => m,
+        };
 
         self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
 
@@ -234,7 +235,7 @@ impl MessagesHandler {
             .reply_markup(markup.get_markup())
             .await?;
 
-        self.app.database.replace_meme_msg_id(&meme.uuid, bot_msg.id.0 as i64);
+        meme.replace_msg_id(bot_msg.id.0 as i64).await;
 
         Ok(())
     }

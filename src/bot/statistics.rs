@@ -1,7 +1,10 @@
 use crate::app::utils::Period;
 use crate::app::{utils::Messages, Application};
-use crate::database::models::{Meme, MemeLikeOperation};
+use crate::database::entity::meme_likes::MemeLikeOperation;
+use crate::database::entity::memes;
+use crate::database::entity::prelude::Memes;
 use crate::nats::messages::StatisticMessage;
+use futures::executor::block_on;
 use std::sync::Arc;
 
 pub struct Statistics {
@@ -18,15 +21,16 @@ impl Statistics {
             Period::Week => {
                 if Period::is_today_a_friday() {
                     info!("Send statistics of week");
-                    self.send_by_period(period);
+                    block_on(self.send_by_period(period));
                 } else {
                     debug!("Today is not a friday!");
+                    block_on(self.send_by_period(period));
                 }
             }
             Period::Month => {
                 if Period::is_today_a_last_month_day() {
                     info!("Send statistics of month");
-                    self.send_by_period(period);
+                    block_on(self.send_by_period(period));
                 } else {
                     debug!("Today is not a last month day!");
                 }
@@ -34,7 +38,7 @@ impl Statistics {
             Period::Year => {
                 if Period::is_today_a_last_year_day() {
                     info!("Send statistics of year");
-                    self.send_by_period(period);
+                    block_on(self.send_by_period(period));
                 } else {
                     debug!("Today is not a last year day!");
                 }
@@ -42,15 +46,15 @@ impl Statistics {
         };
     }
 
-    fn send_by_period(&self, period: &Period) {
-        if let Some((meme, text)) = self.get_top_liked_meme(period) {
+    async fn send_by_period(&self, period: &Period) {
+        if let Some((meme, text)) = self.get_top_liked_meme(period).await {
             let msg = StatisticMessage {
                 chat_id: meme.chat_id,
                 user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
                 reply_id: Some(meme.msg_id.unwrap()),
                 message: text,
             };
-            self.app.nats.publish(&msg);
+            self.app.nats.publish(&msg).await;
         } else {
             warn!("Can't get top liked mem for this period!");
         }
@@ -74,55 +78,57 @@ impl Statistics {
                 message: format!("Хотели топов? Их есть у меня!\n\n{}", &message.join("\n\n")),
                 reply_id: None,
             };
-            self.app.nats.publish(&msg);
+            self.app.nats.publish(&msg).await;
         } else {
             warn!("Can't get top statistics for this period!");
         }
 
         if *period == Period::Week {
-            if let Some((meme, text)) = self.get_top_disliked_meme(period) {
+            if let Some((meme, text)) = self.get_top_disliked_meme(period).await {
                 let msg = StatisticMessage {
                     chat_id: meme.chat_id,
                     user_ids: vec![(String::from("{USERNAME}"), meme.user_id)],
                     reply_id: Some(meme.msg_id.unwrap()),
                     message: text,
                 };
-                self.app.nats.publish(&msg);
+                self.app.nats.publish(&msg).await;
             } else {
                 warn!("Can't get top disliked mem for this period!");
             }
         }
     }
 
-    fn get_top_liked_meme(&self, period: &Period) -> Option<(Meme, String)> {
-        match self.app.database.get_top_meme(period) {
-            Ok((meme, likes)) => {
-                let text = format!(
-                    "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! 🎉",
-                    "{USERNAME}",
-                    Messages::pluralize(likes, ("лайк", "лайка", "лайков")),
-                    Statistics::get_translations(period).1
-                );
+    async fn get_top_liked_meme(&self, period: &Period) -> Option<(memes::Model, String)> {
+        let (from, to) = period.dates();
 
-                Some((meme, text))
-            }
-            Err(_) => {
-                error!("Can't get top mem for this period!");
-                None
-            }
+        if let Some(meme) = Memes::get_max_liked(from, to).await {
+            let like_counts = meme.count_all_likes().await?;
+            let text = format!(
+                "{} твой мем набрал {}!\nБольше всех {}!\nПоздравляю! 🎉",
+                "{USERNAME}",
+                Messages::pluralize(like_counts.likes, ("лайк", "лайка", "лайков")),
+                Statistics::get_translations(period).1
+            );
+
+            return Some((meme, text));
         }
+
+        None
     }
 
-    fn get_top_disliked_meme(&self, period: &Period) -> Option<(Meme, String)> {
-        if let Ok((meme, dislikes)) = self.app.database.get_max_disliked_meme(period) {
-            if *period != Period::Week {
-                return None;
-            }
+    async fn get_top_disliked_meme(&self, period: &Period) -> Option<(memes::Model, String)> {
+        if *period != Period::Week {
+            return None;
+        }
 
+        let (from, to) = period.dates();
+
+        if let Some(meme) = Memes::get_max_disliked(from, to).await {
+            let like_counts = meme.count_all_likes().await?;
             let text = format!(
                 "Вы только посмотрите, {} на твой мем наставили {}!\nТы точно уверен что делаешь все правильно? Может тебе больше не стоит заниматься юмором? 🤔",
                 "{USERNAME}",
-                Messages::pluralize(dislikes, ("дизлайк", "дизлайка", "дизлайков"))
+                Messages::pluralize(like_counts.dislikes, ("дизлайк", "дизлайка", "дизлайков"))
             );
 
             return Some((meme, text));
