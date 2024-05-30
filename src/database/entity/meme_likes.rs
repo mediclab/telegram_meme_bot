@@ -5,6 +5,11 @@ use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{FromQueryResult, QuerySelect, QueryTrait, Set};
 
+#[derive(DeriveIden)]
+pub enum MemeLikes {
+    Table,
+}
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "meme_likes")]
 pub struct Model {
@@ -26,11 +31,25 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Memes,
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::UserId",
+        to = "super::users::Column::UserId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    Users,
 }
 
 impl Related<super::memes::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Memes.def()
+    }
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
     }
 }
 

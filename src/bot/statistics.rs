@@ -1,8 +1,7 @@
 use crate::app::utils::Period;
 use crate::app::{utils::Messages, Application};
-use crate::database::entity::meme_likes::MemeLikeOperation;
 use crate::database::entity::memes;
-use crate::database::entity::prelude::Memes;
+use crate::database::entity::prelude::{Memes, Users};
 use crate::nats::messages::StatisticMessage;
 use futures::executor::block_on;
 use std::sync::Arc;
@@ -59,15 +58,14 @@ impl Statistics {
             warn!("Can't get top liked mem for this period!");
         }
 
-        let messages = vec![
-            self.get_top_memesender(period),
-            self.get_top_selfliker(period),
-            self.get_top_liker(period),
-            self.get_top_disliker(period),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<((String, i64), String)>>();
+        let res = vec![
+            self.get_top_memesender(period).await,
+            self.get_top_selfliker(period).await,
+            self.get_top_liker(period).await,
+            self.get_top_disliker(period).await,
+        ];
+
+        let messages = res.into_iter().flatten().collect::<Vec<((String, i64), String)>>();
 
         let message = messages.iter().map(|i| i.1.clone()).collect::<Vec<String>>();
 
@@ -137,8 +135,11 @@ impl Statistics {
         None
     }
 
-    fn get_top_memesender(&self, period: &Period) -> Option<((String, i64), String)> {
-        if let Ok((user_id, count)) = self.app.database.get_top_memesender(period) {
+    async fn get_top_memesender(&self, period: &Period) -> Option<((String, i64), String)> {
+        let (from, to) = period.dates();
+        let res = Users::top_memesender(from, to).await;
+
+        if let Some(top_user) = res {
             let placeholder = String::from("{MEMESENDER}");
             let period_text = Statistics::get_translations(period);
 
@@ -146,41 +147,45 @@ impl Statistics {
                 "🤡 Мемомёт {}:\n{} отправил {} {}!",
                 period_text.0,
                 &placeholder,
-                Messages::pluralize(count, ("мем", "мема", "мемов")),
+                Messages::pluralize(top_user.count, ("мем", "мема", "мемов")),
                 period_text.1
             );
 
-            return Some(((placeholder, user_id), text));
+            return Some(((placeholder, top_user.user_id), text));
         }
 
         None
     }
 
-    fn get_top_selfliker(&self, period: &Period) -> Option<((String, i64), String)> {
-        if let Ok((user_id, count)) = self.app.database.get_top_selflikes(period) {
+    async fn get_top_selfliker(&self, period: &Period) -> Option<((String, i64), String)> {
+        let (from, to) = period.dates();
+        let res = Users::top_selfliker(from, to).await;
+
+        if let Some(top_user) = res {
             let placeholder = String::from("{SELFLIKER}");
             let period_text = Statistics::get_translations(period);
 
-            if count > 4 {
+            if top_user.count > 4 {
                 let text = format!(
                     "😈 Хитрец {}:\n{} лайкнул свои же мемы {} {}!",
                     period_text.0,
                     &placeholder,
-                    Messages::pluralize(count, ("раз", "раза", "раз")),
+                    Messages::pluralize(top_user.count, ("раз", "раза", "раз")),
                     period_text.1
                 );
 
-                return Some(((placeholder, user_id), text));
+                return Some(((placeholder, top_user.user_id), text));
             }
         }
 
         None
     }
 
-    fn get_top_liker(&self, period: &Period) -> Option<((String, i64), String)> {
-        let query = self.app.database.get_top_likers(period, MemeLikeOperation::Like);
+    async fn get_top_liker(&self, period: &Period) -> Option<((String, i64), String)> {
+        let (from, to) = period.dates();
+        let res = Users::top_liker(from, to).await;
 
-        if let Ok((user_id, count)) = query {
+        if let Some(top_user) = res {
             let placeholder = String::from("{LIKER}");
             let period_text = Statistics::get_translations(period);
 
@@ -189,19 +194,20 @@ impl Statistics {
                 period_text.0,
                 &placeholder,
                 period_text.1,
-                Messages::pluralize(count, ("лайк", "лайка", "лайков")),
+                Messages::pluralize(top_user.count, ("лайк", "лайка", "лайков")),
             );
 
-            return Some(((placeholder, user_id), text));
+            return Some(((placeholder, top_user.user_id), text));
         }
 
         None
     }
 
-    fn get_top_disliker(&self, period: &Period) -> Option<((String, i64), String)> {
-        let query = self.app.database.get_top_likers(period, MemeLikeOperation::Dislike);
+    async fn get_top_disliker(&self, period: &Period) -> Option<((String, i64), String)> {
+        let (from, to) = period.dates();
+        let res = Users::top_disliker(from, to).await;
 
-        if let Ok((user_id, count)) = query {
+        if let Some(top_user) = res {
             let placeholder = String::from("{DISLIKER}");
             let period_text = Statistics::get_translations(period);
 
@@ -210,10 +216,10 @@ impl Statistics {
                 period_text.0,
                 &placeholder,
                 period_text.1,
-                Messages::pluralize(count, ("дизлайк", "дизлайка", "дизлайков")),
+                Messages::pluralize(top_user.count, ("дизлайк", "дизлайка", "дизлайков")),
             );
 
-            return Some(((placeholder, user_id), text));
+            return Some(((placeholder, top_user.user_id), text));
         }
 
         None

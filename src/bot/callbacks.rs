@@ -144,10 +144,9 @@ impl CallbackHandler {
         }
 
         self.bot.delete_message(msg.chat.id, msg.id).await?;
-
         self.bot.delete_message(meme.chat_id(), meme.msg_id()).await?;
 
-        self.app.database.delete_meme(&meme.uuid);
+        meme.remove().await;
 
         self.bot
             .answer_callback_query(&self.callback.id)

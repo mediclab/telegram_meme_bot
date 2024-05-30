@@ -39,7 +39,7 @@ impl MessagesHandler {
         Ok(())
     }
 
-    pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated, app: Arc<Application>) -> Result<()> {
+    pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated) -> Result<()> {
         let member = cm.new_chat_member;
         match member.kind {
             ChatMemberKind::Member => {
