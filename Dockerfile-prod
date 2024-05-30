@@ -29,16 +29,11 @@ RUN apt-get update  \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/tg_meme_bot /usr/local/bin/tg_meme_bot
-COPY --from=builder  /usr/local/cargo/bin/diesel /usr/local/bin/diesel
 COPY --from=medic84/opencv:4.8.0 /usr/local/lib/libopencv_* /usr/local/lib/
 COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
 
 WORKDIR /app
 
-COPY ./initd.sh /app/initd.sh
-
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-RUN chmod +x /app/initd.sh
-
-CMD ["/app/initd.sh"]
+CMD ["tg_meme_bot", "--start"]

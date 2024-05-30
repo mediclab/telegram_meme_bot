@@ -5,7 +5,7 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 
 use crate::app::Application;
 use crate::bot::Bot;
-use crate::database::entity::prelude::{MemeLikes, Memes};
+use crate::database::entity::prelude::{ChatAdmins, MemeLikes, Memes};
 
 use super::markups::*;
 
@@ -129,11 +129,7 @@ impl CommandsHandler {
     }
 
     pub async fn message_command(&self, text: &str) -> Result<()> {
-        let user_chats = self
-            .app
-            .database
-            .get_admin_chats(self.msg.from().unwrap().id.0)
-            .unwrap_or_default();
+        let user_chats = ChatAdmins::get_admin_chats(self.msg.from().unwrap().id.0).await;
 
         match user_chats.len() {
             0 => {}

@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.12.6"
+version = "1.0.0"
 edition = "2021"
 
 [profile.docker]
@@ -27,8 +27,6 @@ pretty_env_logger = "0.5"
 dotenv = "0.15"
 # Comand-Line Arguments
 clap = { version = "4.0", features = ["derive"] }
-# Database tools
-diesel = { version = "2.1", features = ["postgres", "extras"] }
 now = "0.1"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -40,8 +38,7 @@ rand = "0.8"
 opencv = { version = "0.92", default-features = false, features = ["clang-runtime", "imgproc", "imgcodecs"] }
 anyhow = "1.0"
 itertools = "0.13"
-diesel-async = { version = "0.4", features = ["postgres", "deadpool"] }
-sentry = "0.32"
+sentry = "0.33"
 envconfig = "0.10"
 async-nats = "0.35"
 tokio-cron-scheduler = { version = "0.10", features = ["signal"] }

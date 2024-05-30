@@ -81,6 +81,18 @@ impl Entity {
         })
     }
 
+    pub async fn get_by_short_hash(hash: &str) -> Vec<Model> {
+        let res = Self::find()
+            .filter(Column::ShortHash.eq(hash))
+            .all(Database::global().connection())
+            .await;
+
+        res.unwrap_or_else(|e| {
+            error!("Can't get memes by short hash from database: {e}");
+            Vec::new()
+        })
+    }
+
     pub async fn get_count(chat_id: i64) -> u64 {
         let res = Self::find()
             .filter(Column::ChatId.eq(chat_id))

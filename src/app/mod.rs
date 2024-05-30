@@ -8,7 +8,6 @@ use utils::from_binary_to_hex;
 
 use crate::bot::{BotConfig, BotManager};
 use crate::database::entity::prelude::*;
-use crate::database::DBManager;
 use crate::nats::{NatsConfig, NatsManager};
 use crate::redis::RedisManager;
 
@@ -17,7 +16,6 @@ pub mod utils;
 
 #[derive(Clone, Debug)]
 pub struct Application {
-    pub database: DBManager,
     pub redis: RedisManager,
     pub nats: NatsManager,
     pub config: Config,
@@ -43,7 +41,6 @@ impl Application {
         let config = Config::init_from_env().expect("Can't load config from environment");
 
         Self {
-            database: DBManager::connect(&config.db_url),
             redis: RedisManager::connect(&config.redis_url),
             bot: BotManager::new(&config.bot),
             nats: NatsManager::new(&config.nats),

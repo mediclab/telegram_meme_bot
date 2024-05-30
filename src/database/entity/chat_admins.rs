@@ -4,7 +4,7 @@ use crate::database::Database;
 use futures::executor::block_on;
 use futures::future::join_all;
 use sea_orm::entity::prelude::*;
-use sea_orm::Set;
+use sea_orm::{QuerySelect, Set};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "chat_admins")]
@@ -36,5 +36,20 @@ impl Entity {
             .collect();
 
         block_on(join_all(futures));
+    }
+
+    pub async fn get_admin_chats(user_id: u64) -> Vec<i64> {
+        let res = Self::find()
+            .filter(Column::UserId.eq(user_id as i64))
+            .select_only()
+            .column(Column::ChatId)
+            .into_tuple()
+            .all(Database::global().connection())
+            .await;
+
+        res.unwrap_or_else(|e| {
+            error!("Can't get memes by short hash from database: {e}");
+            Vec::new()
+        })
     }
 }

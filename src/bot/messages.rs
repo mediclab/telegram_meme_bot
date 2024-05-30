@@ -9,8 +9,8 @@ use teloxide::{
 
 use crate::app::{imghash::ImageHash, utils as Utils, Application};
 use crate::bot::{markups::*, Bot};
+use crate::database::entity::memes;
 use crate::database::entity::prelude::{Memes, Users};
-use crate::database::models::Meme;
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -118,11 +118,11 @@ impl MessagesHandler {
 
             (None, None)
         });
-        let mut s_meme: (i64, Option<Meme>) = (0, None);
+        let mut s_meme: (i64, Option<memes::Model>) = (0, None);
 
         if hash.is_some() && hash_min.is_some() {
             let hash_min = hash_min.clone().unwrap();
-            let similar_memes = self.app.database.get_memes_by_short_hash(&hash_min).unwrap_or_default();
+            let similar_memes = Memes::get_by_short_hash(&hash_min).await;
 
             similar_memes.into_iter().for_each(|meme| {
                 let hash = hash.clone().unwrap();
