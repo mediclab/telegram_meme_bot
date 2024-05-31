@@ -40,7 +40,6 @@ anyhow = "1.0"
 itertools = "0.13"
 sentry = "0.33"
 envconfig = "0.10"
-async-nats = "0.35"
 tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
 once_cell = "1.19.0"
 sea-orm = { version = "0.12.15", features = ["sqlx-postgres", "macros", "runtime-tokio-rustls", "with-uuid", "with-chrono"] }

@@ -8,7 +8,6 @@ use utils::from_binary_to_hex;
 
 use crate::bot::{BotConfig, BotManager};
 use crate::database::entity::prelude::*;
-use crate::nats::{NatsConfig, NatsManager};
 use crate::redis::RedisManager;
 
 pub mod imghash;
@@ -17,7 +16,6 @@ pub mod utils;
 #[derive(Clone, Debug)]
 pub struct Application {
     pub redis: RedisManager,
-    pub nats: NatsManager,
     pub config: Config,
     pub bot: BotManager,
 }
@@ -31,8 +29,6 @@ pub struct Config {
     #[envconfig(from = "REDIS_URL")]
     pub redis_url: String,
     #[envconfig(nested = true)]
-    pub nats: NatsConfig,
-    #[envconfig(nested = true)]
     pub bot: BotConfig,
 }
 
@@ -43,7 +39,6 @@ impl Application {
         Self {
             redis: RedisManager::connect(&config.redis_url),
             bot: BotManager::new(&config.bot),
-            nats: NatsManager::new(&config.nats),
             config,
         }
     }

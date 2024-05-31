@@ -11,14 +11,13 @@ use teloxide::dptree;
 
 use crate::app::Application;
 use crate::bot::statistics::Statistics;
-use crate::database::{Database, INSTANCE};
+use crate::database::Database;
 use crate::scheduler::Scheduler;
 use app::utils::Period;
 
 mod app;
 mod bot;
 mod database;
-mod nats;
 mod redis;
 mod scheduler;
 
@@ -56,36 +55,34 @@ async fn main() {
 
     let args = Cli::parse();
     let app = Arc::new(Application::new());
-    let scheduler = Scheduler::new(app.clone());
+    let scheduler = Scheduler::new();
 
     let db = Database::new(&app.config.db_url).await;
     db.migrate().await.expect("Can't migrate databaase");
-    INSTANCE.set(db).expect("Can't set database");
+    database::INSTANCE.set(db).expect("Can't set database");
+    bot::INSTANCE.set(app.bot.clone()).expect("Can't set database");
 
     app.register_chat();
     app.check_version();
 
     match args.command {
         Commands::MemeOfWeek => {
-            let stats = Statistics::new(app);
-            stats.send(&Period::Week);
+            let stats = Statistics::new();
+            stats.send(&Period::Week).await;
         }
         Commands::MemeOfMonth => {
-            let stats = Statistics::new(app);
-            stats.send(&Period::Month);
+            let stats = Statistics::new();
+            stats.send(&Period::Month).await;
         }
         Commands::MemeOfYear => {
-            let stats = Statistics::new(app);
-            stats.send(&Period::Year);
+            let stats = Statistics::new();
+            stats.send(&Period::Year).await;
         }
         Commands::Start => {
             info!("MemeBot version = {}", &app.config.app_version);
 
             info!("Starting scheduler...");
             scheduler.handle().await.expect("Can't run scheduler");
-
-            info!("Starting subscriber...");
-            app.nats.subscriber(&app.bot);
 
             info!("Starting dispatch...");
             app.bot.dispatch(dptree::deps![app.clone()]).await;

@@ -3,6 +3,7 @@ use crate::bot::commands::{CommandsHandler, PrivateCommand, PublicCommand};
 use crate::bot::messages::MessagesHandler;
 use anyhow::Result;
 use envconfig::Envconfig;
+use once_cell::sync::OnceCell;
 use teloxide::adaptors::DefaultParseMode;
 use teloxide::dispatching::{Dispatcher, HandlerExt, UpdateFilterExt};
 use teloxide::dptree;
@@ -21,6 +22,8 @@ pub mod statistics;
 pub mod types;
 
 pub type Bot = DefaultParseMode<teloxide::Bot>;
+
+pub static INSTANCE: OnceCell<BotManager> = OnceCell::new();
 
 #[derive(Envconfig, Clone, Debug)]
 pub struct BotConfig {
@@ -44,10 +47,14 @@ impl BotManager {
         }
     }
 
-    pub async fn get_chat_user(&self, chat_id: i64, user_id: i64) -> User {
+    pub fn global() -> &'static BotManager {
+        INSTANCE.get().expect("Can't get bot")
+    }
+
+    pub async fn get_chat_user(&self, user_id: i64) -> User {
         let member = self
             .bot
-            .get_chat_member(ChatId(chat_id), UserId(user_id as u64))
+            .get_chat_member(ChatId(self.chat_id), UserId(user_id as u64))
             .await
             .expect("Can't get chat member");
 
