@@ -1,7 +1,6 @@
 use chrono::{DateTime, Datelike, Duration, TimeZone, Timelike, Utc, Weekday};
 use itertools::Itertools;
 use now::DateTimeNow;
-use rand::seq::SliceRandom;
 use std::str;
 use teloxide::types::User;
 
@@ -30,23 +29,9 @@ pub fn from_hex_to_binary(s: &str) -> String {
         .join("")
 }
 
-pub struct Messages {
-    messages: Vec<String>,
-}
+pub struct Messages {}
 
 impl Messages {
-    pub fn load(text: &str) -> Self {
-        let vec: Vec<&str> = text.split(';').filter(|text| !text.trim().is_empty()).collect();
-
-        Self {
-            messages: vec.iter().map(|s| s.trim().to_string()).collect(),
-        }
-    }
-
-    pub fn random(&self) -> &String {
-        self.messages.choose(&mut rand::thread_rng()).unwrap()
-    }
-
     pub fn pluralize(num: i64, texts: (&str, &str, &str)) -> String {
         let last = num % 100;
 
@@ -69,6 +54,7 @@ pub enum Period {
     Week,
     Month,
     Year,
+    Custom { from: DateTime<Utc>, to: DateTime<Utc> },
 }
 
 impl Period {
@@ -77,6 +63,7 @@ impl Period {
             Period::Week => self.week_dates(),
             Period::Month => self.month_dates(),
             Period::Year => self.year_dates(),
+            Period::Custom { from, to } => (from, to),
         }
     }
 

@@ -7,11 +7,16 @@ use teloxide::prelude::*;
 use utils::from_binary_to_hex;
 
 use crate::bot::{BotConfig, BotManager};
-use crate::database::entity::prelude::*;
+use crate::database::entity::{memes, prelude::*};
 use crate::redis::RedisManager;
 
 pub mod imghash;
 pub mod utils;
+
+pub struct SimilarMeme {
+    pub percent: i64,
+    pub meme: Option<memes::Model>,
+}
 
 #[derive(Clone, Debug)]
 pub struct Application {
@@ -63,6 +68,39 @@ impl Application {
             Some(from_binary_to_hex(&hash.unwrap())),
             Some(from_binary_to_hex(&hash_min.unwrap())),
         ))
+    }
+
+    pub async fn get_similar_meme(short_hash: &str, long_hash: &str) -> SimilarMeme {
+        let mut s_meme = SimilarMeme { percent: 0, meme: None };
+
+        let similar_memes = Memes::get_by_short_hash(short_hash).await;
+
+        similar_memes.into_iter().for_each(|meme| {
+            let meme_hash = meme.long_hash.clone().unwrap_or_default();
+
+            if meme_hash.len() == long_hash.len() {
+                let percent = ImageHash::compare_hashes(
+                    &utils::from_hex_to_binary(long_hash),
+                    &utils::from_hex_to_binary(&meme_hash),
+                );
+
+                if percent > 93f64 && percent < 99f64 {
+                    if percent as i64 > s_meme.percent {
+                        s_meme = SimilarMeme {
+                            percent: percent as i64,
+                            meme: Some(meme),
+                        };
+                    }
+                } else if percent >= 99f64 {
+                    s_meme = SimilarMeme {
+                        percent: 100,
+                        meme: Some(meme),
+                    };
+                }
+            }
+        });
+
+        s_meme
     }
 
     pub fn check_version(&self) {

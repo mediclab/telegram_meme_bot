@@ -14,7 +14,7 @@ impl Scheduler {
         let mut scheduler = JobScheduler::new().await?;
 
         scheduler
-            .add(Job::new_async("00 21 10 * * Fri", |_uuid, _l| {
+            .add(Job::new_async("00 05 16 * * Fri", |_uuid, _l| {
                 Box::pin(async move {
                     let stats = Statistics::new();
                     stats.send(&Period::Week).await;

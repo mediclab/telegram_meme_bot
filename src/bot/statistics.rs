@@ -17,6 +17,34 @@ pub struct Message {
     reply_id: Option<i64>,
 }
 
+impl Message {
+    pub fn new(text: &str, placeholder: &str, user_id: i64) -> Self {
+        Self {
+            text: text.to_string(),
+            placeholder: placeholder.to_string(),
+            user_id,
+            separate: false,
+            reply_id: None,
+        }
+    }
+
+    pub fn new_separate(text: &str, placeholder: &str, user_id: i64) -> Self {
+        Self {
+            text: text.to_string(),
+            placeholder: placeholder.to_string(),
+            user_id,
+            separate: true,
+            reply_id: None,
+        }
+    }
+
+    pub fn set_reply_id(&mut self, reply_id: Option<i64>) -> Self {
+        self.reply_id = reply_id;
+
+        self.to_owned()
+    }
+}
+
 pub struct Statistics {
     bot: BotManager,
 }
@@ -53,6 +81,10 @@ impl Statistics {
                 } else {
                     debug!("Today is not a last year day!");
                 }
+            }
+            Period::Custom { .. } => {
+                info!("Send statistics of custom period");
+                self.send_by_period(period).await;
             }
         };
     }
@@ -128,13 +160,7 @@ impl Statistics {
                 Statistics::get_translations(period).1
             );
 
-            return Some(Message {
-                text,
-                placeholder,
-                user_id: meme.user_id,
-                separate: true,
-                reply_id: meme.msg_id,
-            });
+            return Some(Message::new_separate(&text, &placeholder, meme.user_id).set_reply_id(meme.msg_id));
         }
 
         None
@@ -156,13 +182,7 @@ impl Statistics {
                 Messages::pluralize(like_counts.dislikes, ("дизлайк", "дизлайка", "дизлайков"))
             );
 
-            return Some(Message {
-                text,
-                placeholder,
-                user_id: meme.user_id,
-                separate: true,
-                reply_id: meme.msg_id,
-            });
+            return Some(Message::new_separate(&text, &placeholder, meme.user_id).set_reply_id(meme.msg_id));
         }
 
         None
@@ -184,13 +204,7 @@ impl Statistics {
                 period_text.1
             );
 
-            return Some(Message {
-                text,
-                placeholder,
-                user_id: top_user.user_id,
-                separate: false,
-                reply_id: None,
-            });
+            return Some(Message::new(&text, &placeholder, top_user.user_id));
         }
 
         None
@@ -213,13 +227,7 @@ impl Statistics {
                     period_text.1
                 );
 
-                return Some(Message {
-                    text,
-                    placeholder,
-                    user_id: top_user.user_id,
-                    separate: false,
-                    reply_id: None,
-                });
+                return Some(Message::new(&text, &placeholder, top_user.user_id));
             }
         }
 
@@ -242,13 +250,7 @@ impl Statistics {
                 Messages::pluralize(top_user.count, ("лайк", "лайка", "лайков")),
             );
 
-            return Some(Message {
-                text,
-                placeholder,
-                user_id: top_user.user_id,
-                separate: false,
-                reply_id: None,
-            });
+            return Some(Message::new(&text, &placeholder, top_user.user_id));
         }
 
         None
@@ -270,23 +272,21 @@ impl Statistics {
                 Messages::pluralize(top_user.count, ("дизлайк", "дизлайка", "дизлайков")),
             );
 
-            return Some(Message {
-                text,
-                placeholder,
-                user_id: top_user.user_id,
-                separate: false,
-                reply_id: None,
-            });
+            return Some(Message::new(&text, &placeholder, top_user.user_id));
         }
 
         None
     }
 
-    fn get_translations(period: &Period) -> (&str, &str) {
+    fn get_translations(period: &Period) -> (String, String) {
         match *period {
-            Period::Week => ("недели", "на этой неделе"),
-            Period::Month => ("месяца", "в этом месяце"),
-            Period::Year => ("года", "в этом году"),
+            Period::Week => ("недели".to_owned(), "на этой неделе".to_owned()),
+            Period::Month => ("месяца".to_owned(), "в этом месяце".to_owned()),
+            Period::Year => ("года".to_owned(), "в этом году".to_owned()),
+            Period::Custom { from, to } => (
+                "периода".to_owned(),
+                format!("в периоде с {} по {}", from.format("%Y-%m-%d"), to.format("%Y-%m-%d")),
+            ),
         }
     }
 }

@@ -7,10 +7,12 @@ use teloxide::{
     types::{InputFile, MessageKind, PhotoSize, Video},
 };
 
-use crate::app::{imghash::ImageHash, utils as Utils, Application};
+use crate::app::{utils as Utils, Application};
 use crate::bot::{markups::*, Bot};
-use crate::database::entity::memes;
-use crate::database::entity::prelude::{Memes, Users};
+use crate::database::entity::{
+    messages::EntityTypes,
+    prelude::{Memes, Messages, Users},
+};
 
 pub struct MessagesHandler {
     pub app: Arc<Application>,
@@ -43,24 +45,20 @@ impl MessagesHandler {
         let member = cm.new_chat_member;
         match member.kind {
             ChatMemberKind::Member => {
-                let messages = Utils::Messages::load(include_str!("../../messages/newbie.in"));
+                let message = Messages::get_random_text(EntityTypes::NewbieUser).await;
                 bot.send_message(
                     cm.chat.id,
-                    messages
-                        .random()
-                        .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                    message.replace("{user_name}", &Utils::get_user_text(&member.user)),
                 )
                 .await?;
 
                 Users::add(&member.user).await;
             }
             ChatMemberKind::Left | ChatMemberKind::Banned(_) => {
-                let messages = Utils::Messages::load(include_str!("../../messages/left.in"));
+                let message = Messages::get_random_text(EntityTypes::UserLeftChat).await;
                 bot.send_message(
                     cm.chat.id,
-                    messages
-                        .random()
-                        .replace("{user_name}", &Utils::get_user_text(&member.user)),
+                    message.replace("{user_name}", &Utils::get_user_text(&member.user)),
                 )
                 .await?;
 
@@ -113,53 +111,32 @@ impl MessagesHandler {
         let user_text = Utils::get_user_text(user);
 
         let hash_result = self.app.generate_hashes(&photos[0].file.id).await;
-        let (hash, hash_min) = hash_result.unwrap_or_else(|e| {
+        let (Some(hash), Some(hash_min)) = hash_result.unwrap_or_else(|e| {
             warn!("Can't generate hashes. Error: {e}");
 
             (None, None)
-        });
-        let mut s_meme: (i64, Option<memes::Model>) = (0, None);
+        }) else {
+            error!("Hashes incorrect");
+            return Ok(());
+        };
 
-        if hash.is_some() && hash_min.is_some() {
-            let hash_min = hash_min.clone().unwrap();
-            let similar_memes = Memes::get_by_short_hash(&hash_min).await;
-
-            similar_memes.into_iter().for_each(|meme| {
-                let hash = hash.clone().unwrap();
-                let meme_hash = meme.long_hash.clone().unwrap_or_default();
-
-                if meme_hash.len() == hash.len() {
-                    let percent = ImageHash::compare_hashes(
-                        &Utils::from_hex_to_binary(&hash),
-                        &Utils::from_hex_to_binary(&meme_hash),
-                    );
-
-                    if percent > 93f64 && percent < 99f64 {
-                        if percent as i64 > s_meme.0 {
-                            s_meme = (percent as i64, Some(meme));
-                        }
-                    } else if percent >= 99f64 {
-                        s_meme = (100, Some(meme));
-                    }
-                }
-            });
-        }
+        let s_meme = Application::get_similar_meme(&hash_min, &hash).await;
 
         self.bot.delete_message(self.msg.chat.id, self.msg.id).await?;
 
-        if s_meme.0 == 100 {
-            let meme = s_meme.1.unwrap();
-            let messages = Utils::Messages::load(include_str!("../../messages/meme_already_exists.in"));
+        if s_meme.percent == 100 {
+            let meme = s_meme.meme.unwrap();
+            let message = Messages::get_random_text(EntityTypes::MemeAlreadyExists).await;
 
             self.bot
-                .send_message(self.msg.chat.id, messages.random().replace("{user_name}", &user_text))
+                .send_message(self.msg.chat.id, message.replace("{user_name}", &user_text))
                 .reply_to_message_id(meme.msg_id())
                 .await?;
 
             return Ok(());
         }
 
-        let meme = match Memes::add(&self.msg, &hash, &hash_min).await {
+        let meme = match Memes::add(&self.msg, &Some(hash), &Some(hash_min)).await {
             None => {
                 warn!("Meme is empty after insert!");
                 return Ok(());
@@ -183,18 +160,18 @@ impl MessagesHandler {
 
         meme.replace_msg_id(bot_msg.id.0 as i64).await;
 
-        if s_meme.0 > 0 {
-            let messages = Utils::Messages::load(include_str!("../../messages/similar_meme.in"));
+        if s_meme.percent > 0 {
+            let message = Messages::get_random_text(EntityTypes::SimilarMeme).await;
 
             self.bot
                 .send_message(
                     self.msg.chat.id,
-                    messages.random().replace("{user_name}", &user_text).replace(
+                    message.replace("{user_name}", &user_text).replace(
                         "{percent}",
-                        &Utils::Messages::pluralize(s_meme.0, ("процент", "процента", "процентов")),
+                        &Utils::Messages::pluralize(s_meme.percent, ("процент", "процента", "процентов")),
                     ),
                 )
-                .reply_to_message_id(s_meme.1.unwrap().msg_id())
+                .reply_to_message_id(s_meme.meme.unwrap().msg_id())
                 .reply_markup(
                     DeleteMarkup::new(meme.uuid)
                         .set_ok_text("🗑 Упс, действительно, было...")

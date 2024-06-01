@@ -101,9 +101,8 @@ impl CommandsHandler {
             .send_message(
                 self.msg.chat.id,
                 format!(
-                    "{}\n\n{}\nВерсия бота: {}",
+                    "{}\n\nЧтобы бот не посчитал твое сообщение мемом, достаточно указать в тексте сообщения к картинке <b>nomem</b>\nIssue\\Предложения: <a href=\"https://github.com/mediclab/telegram_meme_bot/issues\">писать сюда</a>\nВерсия бота: {}",
                     PublicCommand::descriptions(),
-                    include_str!("../../messages/help_text_addition.in"),
                     self.app.config.app_version
                 ),
             )
@@ -302,7 +301,14 @@ impl CommandsHandler {
             dislikes_count = like_counts.dislikes;
         }
 
-        let message = include_str!("../../messages/stats.in")
+        let mut message = "<b>Статистика мемочата (за все время):</b>
+
+🤡 Всего отправлено мемов: {memes_count}
+❤️ Всего поставлено лайков: {memes_likes}
+💔 Всего поставлено дизлайков: {memes_dislikes}"
+            .to_owned();
+
+        message = message
             .replace("{memes_count}", &memes_count.to_string())
             .replace("{memes_likes}", &likes_count.to_string())
             .replace("{memes_dislikes}", &dislikes_count.to_string());

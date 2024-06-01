@@ -3,6 +3,7 @@ extern crate dotenv;
 extern crate log;
 extern crate pretty_env_logger;
 
+use chrono::NaiveDateTime;
 use std::sync::Arc;
 
 use clap::Parser;
@@ -41,6 +42,13 @@ enum Commands {
     MemeOfMonth,
     #[command(long_flag = "meme_of_year", short_flag = 'y', about = "Send meme of year to chats")]
     MemeOfYear,
+    #[command(long_flag = "meme_of_custom", short_flag = 'c', about = "Send meme of custom period to chats")]
+    MemeOfCustom {
+        #[arg(required = true, help = "Set date and time start period")]
+        from: NaiveDateTime,
+        #[arg(required = true, help = "Set date and time end period")]
+        to: NaiveDateTime
+    },
 }
 
 #[tokio::main]
@@ -77,6 +85,15 @@ async fn main() {
         Commands::MemeOfYear => {
             let stats = Statistics::new();
             stats.send(&Period::Year).await;
+        }
+        Commands::MemeOfCustom { from, to } => {
+            let stats = Statistics::new();
+            stats
+                .send(&Period::Custom {
+                    from: from.and_utc(),
+                    to: to.and_utc(),
+                })
+                .await;
         }
         Commands::Start => {
             info!("MemeBot version = {}", &app.config.app_version);
