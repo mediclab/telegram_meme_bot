@@ -1,23 +1,7 @@
-use core::fmt::Debug;
-
-use serde::{Deserialize, Serialize};
+use crate::bot::types::{CallbackOperations, MemeCallback};
 use serde_json::json;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum CallbackOperations {
-    Like,
-    Dislike,
-    Delete,
-    None,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MemeCallback {
-    pub uuid: Uuid,
-    pub op: CallbackOperations,
-}
 
 pub struct MemeMarkup {
     likes: i64,

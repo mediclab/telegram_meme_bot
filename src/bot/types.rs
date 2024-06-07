@@ -2,8 +2,24 @@ use crate::database::entity::{chats, memes, users};
 use crate::database::Database;
 use sea_orm::ActiveModelTrait;
 use sea_orm::Set;
+use serde::{Deserialize, Serialize};
 use teloxide::prelude::{ChatId, Message, UserId};
 use teloxide::types::{Chat, MessageId, User};
+use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum CallbackOperations {
+    Like,
+    Dislike,
+    Delete,
+    None,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MemeCallback {
+    pub uuid: Uuid,
+    pub op: CallbackOperations,
+}
 
 impl From<User> for users::ActiveModel {
     fn from(value: User) -> Self {
@@ -40,12 +56,12 @@ impl memes::Entity {
         };
 
         let res = memes::ActiveModel {
-            msg_id: sea_orm::Set(Some(message.id.0 as i64)),
-            user_id: sea_orm::Set(message.from().unwrap().id.0 as i64),
-            chat_id: sea_orm::Set(message.chat.id.0),
-            photos: sea_orm::Set(json),
-            long_hash: sea_orm::Set(l_hash.clone()),
-            short_hash: sea_orm::Set(s_hash.clone()),
+            msg_id: Set(Some(message.id.0 as i64)),
+            user_id: Set(message.from().unwrap().id.0 as i64),
+            chat_id: Set(message.chat.id.0),
+            photos: Set(json),
+            long_hash: Set(l_hash.clone()),
+            short_hash: Set(s_hash.clone()),
             ..Default::default()
         }
         .insert(Database::global().connection())

@@ -58,6 +58,14 @@ impl Entity {
         }
     }
 
+    pub async fn get_random_photo(entity_type: EntityTypes) -> String {
+        if let Some(model) = Self::get_random(MessageTypes::Photo, entity_type).await {
+            model.message
+        } else {
+            String::new()
+        }
+    }
+
     pub async fn get_random(message_type: MessageTypes, entity_type: EntityTypes) -> Option<Model> {
         let res = Self::find()
             .filter(Column::Type.eq(message_type))

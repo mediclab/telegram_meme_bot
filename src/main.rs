@@ -68,7 +68,8 @@ async fn main() {
     let db = Database::new(&app.config.db_url).await;
     db.migrate().await.expect("Can't migrate databaase");
     database::INSTANCE.set(db).expect("Can't set database");
-    bot::INSTANCE.set(app.bot.clone()).expect("Can't set database");
+    bot::INSTANCE.set(app.bot.clone()).expect("Can't set BotManager");
+    // redis::INSTANCE.set(app.redis.clone()).expect("Can't set RedisManager");
 
     app.register_chat();
     app.check_version();

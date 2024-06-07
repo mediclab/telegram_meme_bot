@@ -4,8 +4,9 @@ use anyhow::Result;
 use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
 
+use super::markups::*;
 use crate::app::Application;
-use crate::bot::markups::*;
+use crate::bot::types::{CallbackOperations, MemeCallback};
 use crate::bot::Bot;
 use crate::database::entity::{meme_likes::MemeLikesCountAll, memes::Model as MemeModel, prelude::Memes};
 
@@ -16,31 +17,10 @@ pub struct CallbackHandler {
 }
 
 impl CallbackHandler {
-    pub async fn handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<()> {
+    pub async fn public_handle(bot: Bot, callback: CallbackQuery, app: Arc<Application>) -> Result<()> {
         let handler = CallbackHandler { app, bot, callback };
-
-        match &handler.callback.chat_id() {
-            Some(chat) => {
-                if chat.0 > 0 {
-                    handler.private_handle().await?;
-                } else {
-                    handler.public_handle().await?;
-                }
-            }
-
-            None => {}
-        }
-
-        Ok(())
-    }
-
-    pub async fn private_handle(&self) -> Result<()> {
-        Ok(())
-    }
-
-    pub async fn public_handle(&self) -> Result<()> {
         let data: MemeCallback =
-            serde_json::from_str(&self.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
+            serde_json::from_str(&handler.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
         let meme = match Memes::get_by_id(data.uuid).await {
             None => {
@@ -53,16 +33,16 @@ impl CallbackHandler {
 
         match data.op {
             CallbackOperations::Like => {
-                self.like(&meme).await?;
+                handler.like(&meme).await?;
             }
             CallbackOperations::Dislike => {
-                self.dislike(&meme).await?;
+                handler.dislike(&meme).await?;
             }
             CallbackOperations::Delete => {
-                self.delete(&meme).await?;
+                handler.delete(&meme).await?;
             }
             CallbackOperations::None => {
-                self.none(&meme).await?;
+                handler.none(&meme).await?;
             }
         };
 

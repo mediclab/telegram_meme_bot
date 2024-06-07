@@ -52,4 +52,15 @@ impl Entity {
             Vec::new()
         })
     }
+
+    pub fn is_user_admin(user_id: i64) -> bool {
+        let query = Self::find()
+            .filter(Column::UserId.eq(user_id))
+            .one(Database::global().connection());
+
+        match block_on(query) {
+            Ok(m) => m.is_some(),
+            Err(_) => false,
+        }
+    }
 }

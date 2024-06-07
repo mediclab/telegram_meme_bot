@@ -1,6 +1,8 @@
 use redis::{Client as RedisClient, Commands, Connection, RedisResult};
 use serde_json::json;
 
+// pub static INSTANCE: OnceCell<RedisManager> = OnceCell::new();
+
 #[derive(Clone, Debug)]
 pub struct RedisManager {
     client: RedisClient,
@@ -12,6 +14,10 @@ impl RedisManager {
             client: RedisClient::open(redis_url).expect("Redis is not connected"),
         }
     }
+
+    // pub fn global() -> &'static RedisManager {
+    //     INSTANCE.get().expect("RedisManager is not initialized")
+    // }
 
     pub fn is_chat_registered(&self, chat_id: i64) -> bool {
         self.get_connection()
@@ -55,6 +61,10 @@ impl RedisManager {
 
         serde_json::from_str::<Vec<u64>>(&json.unwrap()).unwrap_or_default()
     }
+
+    // pub fn is_user_chat_admin(&self, chat_id: i64, user_id: u64) -> bool {
+    //     self.get_chat_admins(chat_id).contains(&user_id)
+    // }
 
     pub fn get_app_version(&self) -> Option<String> {
         self.get_connection().get("app_version").unwrap_or(None)
