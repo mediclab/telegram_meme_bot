@@ -6,6 +6,7 @@ use crate::database::entity::{
     prelude::{Memes, Messages, Users},
 };
 use std::sync::Arc;
+use teloxide::types::MessageKind;
 use teloxide::{
     payloads::{SendMessageSetters, SendPhotoSetters},
     prelude::*,
@@ -23,7 +24,7 @@ pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated) -> anyhow::Resu
             )
             .await?;
 
-            Users::add(&member.user).await;
+            Users::add(member.user.into()).await;
         }
         ChatMemberKind::Left | ChatMemberKind::Banned(_) => {
             let message = Messages::get_random_text(EntityTypes::UserLeftChat).await;
@@ -42,19 +43,29 @@ pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated) -> anyhow::Resu
 }
 
 pub async fn common(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Result<()> {
-    // If This is forwarded message - nothing to do.
-    if msg.forward().is_some() {
-        return Ok(());
-    }
+    match msg.kind {
+        MessageKind::Common(_) => {
+            // If This is forwarded message - nothing to do.
+            if msg.forward().is_some() {
+                return Ok(());
+            }
+
+            if msg.from().is_none() {
+                warn!("Anonymous user detected");
+
+                return Ok(());
+            }
+        }
+        MessageKind::NewChatMembers(_) | MessageKind::LeftChatMember(_) => {
+            bot.delete_message(msg.chat.id, msg.id).await?;
+
+            return Ok(());
+        }
+        _ => return Ok(()),
+    };
 
     // If caption contains "nomeme" - nothing to do.
     if msg.caption().unwrap_or("").to_lowercase().contains("nomem") {
-        return Ok(());
-    }
-
-    if msg.from().is_none() {
-        warn!("Anonimous user detected");
-
         return Ok(());
     }
 

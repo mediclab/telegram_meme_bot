@@ -75,22 +75,6 @@ impl memes::Model {
     }
 }
 
-impl users::Entity {
-    pub async fn add(tg_user: &User) -> Option<users::Model> {
-        let res = users::ActiveModel::from(tg_user.clone())
-            .insert(Database::global().connection())
-            .await;
-
-        match res {
-            Ok(m) => Some(m),
-            Err(e) => {
-                error!("Can't add user to database: {e}");
-                None
-            }
-        }
-    }
-}
-
 impl chats::Entity {
     pub async fn add(tg_chat: &Chat) -> Option<chats::Model> {
         let res = chats::ActiveModel::from(tg_chat.clone())
