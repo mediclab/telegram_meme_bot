@@ -1,2 +1,0 @@
-ALTER TABLE chats DROP COLUMN title;
-ALTER TABLE chats DROP COLUMN deleted_at;

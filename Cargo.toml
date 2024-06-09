@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "0.12.6"
+version = "1.0.0"
 edition = "2021"
 
 [profile.docker]
@@ -13,9 +13,12 @@ opt-level = "z"
 panic = "abort"
 codegen-units = 1
 
+[workspace]
+members = [".", "migration"]
+
 [dependencies]
 # Telegram Bot Library
-teloxide = { version = "0.12", features = ["macros"] }
+teloxide = { version = "0.12", features = ["macros", "redis-storage"] }
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 # Logs Libraries
 log = "0.4"
@@ -24,8 +27,6 @@ pretty_env_logger = "0.5"
 dotenv = "0.15"
 # Comand-Line Arguments
 clap = { version = "4.0", features = ["derive"] }
-# Database tools
-diesel = { version = "2.1", features = ["postgres", "extras"] }
 now = "0.1"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -34,11 +35,12 @@ futures = "0.3"
 serde = "1.0"
 serde_json = "1.0"
 rand = "0.8"
-opencv = { version = "0.88", default-features = false, features = ["clang-runtime", "imgproc", "imgcodecs"] }
+opencv = { version = "0.92", default-features = false, features = ["clang-runtime", "imgproc", "imgcodecs"] }
 anyhow = "1.0"
-itertools = "0.12"
-diesel-async = { version = "0.4", features = ["postgres", "deadpool"] }
-sentry = "0.32"
+itertools = "0.13"
+sentry = "0.34"
 envconfig = "0.10"
-async-nats = "0.34"
 tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
+once_cell = "1.19.0"
+sea-orm = { version = "0.12.15", features = ["sqlx-postgres", "macros", "runtime-tokio-rustls", "with-uuid", "with-chrono"] }
+migration = { path = "migration" }

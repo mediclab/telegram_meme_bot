@@ -7,18 +7,20 @@ use teloxide::prelude::*;
 use utils::from_binary_to_hex;
 
 use crate::bot::{BotConfig, BotManager};
-use crate::database::DBManager;
-use crate::nats::{NatsConfig, NatsManager};
+use crate::database::entity::{memes, prelude::*};
 use crate::redis::RedisManager;
 
 pub mod imghash;
 pub mod utils;
 
+pub struct SimilarMeme {
+    pub percent: i64,
+    pub meme: Option<memes::Model>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Application {
-    pub database: DBManager,
     pub redis: RedisManager,
-    pub nats: NatsManager,
     pub config: Config,
     pub bot: BotManager,
 }
@@ -32,8 +34,6 @@ pub struct Config {
     #[envconfig(from = "REDIS_URL")]
     pub redis_url: String,
     #[envconfig(nested = true)]
-    pub nats: NatsConfig,
-    #[envconfig(nested = true)]
     pub bot: BotConfig,
 }
 
@@ -42,10 +42,8 @@ impl Application {
         let config = Config::init_from_env().expect("Can't load config from environment");
 
         Self {
-            database: DBManager::connect(&config.db_url),
             redis: RedisManager::connect(&config.redis_url),
             bot: BotManager::new(&config.bot),
-            nats: NatsManager::new(&config.nats),
             config,
         }
     }
@@ -72,6 +70,39 @@ impl Application {
         ))
     }
 
+    pub async fn get_similar_meme(short_hash: &str, long_hash: &str) -> SimilarMeme {
+        let mut s_meme = SimilarMeme { percent: 0, meme: None };
+
+        let similar_memes = Memes::get_by_short_hash(short_hash).await;
+
+        similar_memes.into_iter().for_each(|meme| {
+            let meme_hash = meme.long_hash.clone().unwrap_or_default();
+
+            if meme_hash.len() == long_hash.len() {
+                let percent = ImageHash::compare_hashes(
+                    &utils::from_hex_to_binary(long_hash),
+                    &utils::from_hex_to_binary(&meme_hash),
+                );
+
+                if percent > 93f64 && percent < 99f64 {
+                    if percent as i64 > s_meme.percent {
+                        s_meme = SimilarMeme {
+                            percent: percent as i64,
+                            meme: Some(meme),
+                        };
+                    }
+                } else if percent >= 99f64 {
+                    s_meme = SimilarMeme {
+                        percent: 100,
+                        meme: Some(meme),
+                    };
+                }
+            }
+        });
+
+        s_meme
+    }
+
     pub fn check_version(&self) {
         let chat_id = self.config.bot.chat_id;
         if let Some(redis_version) = self.redis.get_app_version() {
@@ -91,9 +122,7 @@ impl Application {
         self.redis.register_chat(chat_id);
         self.redis.set_chat_admins(chat_id, &admins);
 
-        admins.into_iter().for_each(|admin| {
-            self.database.add_chat_admin(chat_id, admin);
-        });
+        ChatAdmins::add_admins(chat_id, &admins);
 
         true
     }

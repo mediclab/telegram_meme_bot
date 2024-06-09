@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:14-alpine
-    command: ["postgres", "-c", "log_statement=all"]
+    command: [ "postgres", "-c", "log_statement=all" ]
     environment:
       POSTGRES_USER: meme_bot
       POSTGRES_DB: meme_bot
@@ -23,31 +21,17 @@ services:
     ports:
       - "6379:6379"
 
-  nats:
-    image: nats:2.10-alpine
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-      - "6222:6222"
-    healthcheck:
-      test: echo $$(wget --server-response http://0.0.0.0:8222/varz 2>&1 | grep  '200 OK') | grep '200'  || exit 1
-      interval: 2s
-      timeout: 2s
-      retries: 5
-
   bot:
     build:
       dockerfile: "./Dockerfile"
       context: .
-    command: sh -c "diesel migration run && cargo run --profile docker -- --start"
+    command: sh -c "cargo run --profile docker -- --start"
     #command: sh -c "tail -f /dev/null"
     working_dir: /app
     volumes:
       - ./:/app
     depends_on:
       postgres:
-        condition: service_healthy
-      nats:
         condition: service_healthy
 
 volumes:
