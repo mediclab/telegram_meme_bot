@@ -1,12 +1,16 @@
 use super::markups::*;
 use crate::app::Application;
 use crate::bot::Bot;
-use crate::database::entity::messages::EntityTypes;
-use crate::database::entity::prelude::{Memes, Messages, Users};
+use crate::database::entity::{
+    messages::EntityTypes,
+    prelude::{Memes, Messages, Users},
+};
 use std::sync::Arc;
-use teloxide::payloads::{SendMessageSetters, SendPhotoSetters};
-use teloxide::prelude::*;
-use teloxide::types::{ChatMemberKind, InputFile};
+use teloxide::{
+    payloads::{SendMessageSetters, SendPhotoSetters},
+    prelude::*,
+    types::{ChatMemberKind, InputFile},
+};
 
 pub async fn chat_member_handle(bot: Bot, cm: ChatMemberUpdated) -> anyhow::Result<()> {
     let member = cm.new_chat_member;

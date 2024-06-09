@@ -1,8 +1,7 @@
 use crate::app::Application;
 use crate::bot::Bot;
 use std::sync::Arc;
-use teloxide::prelude::*;
-use teloxide::utils::command::BotCommands;
+use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Команды которые поддерживает бот:")]

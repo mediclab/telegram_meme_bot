@@ -2,24 +2,8 @@ use crate::database::entity::{chats, memes, users};
 use crate::database::Database;
 use sea_orm::ActiveModelTrait;
 use sea_orm::Set;
-use serde::{Deserialize, Serialize};
 use teloxide::prelude::{ChatId, Message, UserId};
 use teloxide::types::{Chat, MessageId, User};
-use uuid::Uuid;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum CallbackOperations {
-    Like,
-    Dislike,
-    Delete,
-    None,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MemeCallback {
-    pub uuid: Uuid,
-    pub op: CallbackOperations,
-}
 
 impl From<User> for users::ActiveModel {
     fn from(value: User) -> Self {

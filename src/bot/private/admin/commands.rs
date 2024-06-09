@@ -1,9 +1,8 @@
 use crate::app::Application;
-use crate::bot::Bot;
+use crate::bot::{private::PrivateState, Bot, BotDialogue, State};
 use crate::database::entity::prelude::ChatAdmins;
 use std::sync::Arc;
-use teloxide::prelude::*;
-use teloxide::utils::command::BotCommands;
+use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Команды которые поддерживает бот:")]
@@ -46,5 +45,16 @@ pub async fn message_command(bot: Bot, msg: Message, text: String) -> anyhow::Re
         }
     }
 
+    Ok(())
+}
+
+pub async fn add_message_command(bot: Bot, msg: Message, dialogue: BotDialogue) -> anyhow::Result<()> {
+    bot.send_message(
+        msg.chat.id,
+        "Отправьте изображение, текст или гифку для добавления ее в хранилище",
+    )
+    .await?;
+
+    dialogue.update(State::Private(PrivateState::AdminAddMessage)).await?;
     Ok(())
 }

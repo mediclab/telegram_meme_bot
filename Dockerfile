@@ -12,6 +12,4 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
       libgtk2.0-dev libdc1394-22-dev libssl-dev \
     && apt-get clean
 
-WORKDIR /app
-
 ENV LD_LIBRARY_PATH=/usr/local/lib

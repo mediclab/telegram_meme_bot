@@ -1,12 +1,18 @@
 use anyhow::Result;
 use envconfig::Envconfig;
 use once_cell::sync::OnceCell;
-use teloxide::adaptors::DefaultParseMode;
-use teloxide::dispatching::Dispatcher;
-use teloxide::dptree;
-use teloxide::net::Download;
-use teloxide::prelude::{Bot as TxBot, ChatId, DependencyMap, Requester, RequesterExt, UserId};
-use teloxide::types::{Chat, ParseMode, User};
+use serde::{Deserialize, Serialize};
+use teloxide::{
+    adaptors::DefaultParseMode,
+    dispatching::{
+        dialogue::{serializer::Json, RedisStorage},
+        Dispatcher,
+    },
+    dptree,
+    net::Download,
+    prelude::*,
+    types::{Chat, ParseMode, User},
+};
 use tokio::fs::File;
 
 mod private;
@@ -15,7 +21,7 @@ pub mod statistics;
 pub mod types;
 
 pub type Bot = DefaultParseMode<teloxide::Bot>;
-// type BotDialogue = Dialogue<State, InMemStorage<State>>;
+type BotDialogue = Dialogue<State, RedisStorage<Json>>;
 
 pub static INSTANCE: OnceCell<BotManager> = OnceCell::new();
 
@@ -36,7 +42,7 @@ pub struct BotManager {
 impl BotManager {
     pub fn new(config: &BotConfig) -> Self {
         Self {
-            bot: TxBot::new(&config.bot_token).parse_mode(ParseMode::Html),
+            bot: teloxide::Bot::new(&config.bot_token).parse_mode(ParseMode::Html),
             chat_id: config.chat_id,
         }
     }
@@ -93,10 +99,10 @@ impl BotManager {
         (ch.is_group() || ch.is_supergroup()) && ch.id.0 == chat_id
     }
 }
-//
-// #[derive(Clone, Default, Debug)]
-// pub enum State {
-//     #[default]
-//     Idle,
-//     AddMessage,
-// }
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub enum State {
+    #[default]
+    Idle,
+    Private(private::PrivateState),
+}

@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use clap::Parser;
 use dotenv::dotenv;
+use teloxide::dispatching::dialogue::serializer::Json;
+use teloxide::dispatching::dialogue::RedisStorage;
 use teloxide::dptree;
 
 use crate::app::Application;
@@ -103,7 +105,14 @@ async fn main() {
             scheduler.handle().await.expect("Can't run scheduler");
 
             info!("Starting dispatch...");
-            app.bot.dispatch(dptree::deps![app.clone()]).await;
+            app.bot
+                .dispatch(dptree::deps![
+                    app.clone(),
+                    RedisStorage::open(app.config.redis_url.clone(), Json)
+                        .await
+                        .expect("Can't connect dialogues on redis")
+                ])
+                .await;
 
             info!("Shutdown bot...");
         }

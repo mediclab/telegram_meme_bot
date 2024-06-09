@@ -1,13 +1,17 @@
 use super::markups::DeleteMarkup;
 use crate::app::Application;
 use crate::bot::Bot;
-use crate::database::entity::messages::EntityTypes;
-use crate::database::entity::prelude::{MemeLikes, Memes, Messages};
+use crate::database::entity::{
+    messages::EntityTypes,
+    prelude::{MemeLikes, Memes, Messages},
+};
 use std::sync::Arc;
-use teloxide::payloads::SendMessageSetters;
-use teloxide::prelude::{Message, Requester};
-use teloxide::types::InputFile;
-use teloxide::utils::command::BotCommands;
+use teloxide::{
+    payloads::SendMessageSetters,
+    prelude::{Message, Requester},
+    types::InputFile,
+    utils::command::BotCommands,
+};
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Команды которые поддерживает бот:")]

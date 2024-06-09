@@ -1,4 +1,4 @@
-FROM medic84/rust-diesel:latest as builder
+FROM rust:slim-bullseye as builder
 
 COPY --from=medic84/opencv:4.8.0 /usr/local/lib/libopencv_* /usr/local/lib/
 COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
@@ -31,8 +31,6 @@ RUN apt-get update  \
 COPY --from=builder /app/target/release/tg_meme_bot /usr/local/bin/tg_meme_bot
 COPY --from=medic84/opencv:4.8.0 /usr/local/lib/libopencv_* /usr/local/lib/
 COPY --from=medic84/opencv:4.8.0 /usr/local/bin/opencv_* /usr/local/bin/
-
-WORKDIR /app
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
 

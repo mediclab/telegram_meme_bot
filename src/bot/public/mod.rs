@@ -1,13 +1,16 @@
 use crate::bot::BotManager;
 use commands::PublicCommand;
-use teloxide::dispatching::{UpdateFilterExt, UpdateHandler};
-use teloxide::dptree;
-use teloxide::prelude::*;
+use teloxide::{
+    dispatching::{UpdateFilterExt, UpdateHandler},
+    dptree,
+    prelude::*,
+};
 
 mod callbacks;
 mod commands;
 mod markups;
 mod messages;
+mod types;
 
 pub fn scheme() -> UpdateHandler<anyhow::Error> {
     let chat_id = BotManager::global().chat_id;
@@ -31,5 +34,11 @@ pub fn scheme() -> UpdateHandler<anyhow::Error> {
                 .filter(move |cm: ChatMemberUpdated| BotManager::filter_messages(&cm.chat, chat_id))
                 .endpoint(messages::chat_member_handle),
         )
-        .branch(Update::filter_callback_query().endpoint(callbacks::CallbackHandler::public_handle))
+        .branch(
+            Update::filter_callback_query()
+                .filter(move |c: CallbackQuery| {
+                    c.message.is_some() && BotManager::filter_messages(&c.message.unwrap().chat, chat_id)
+                })
+                .endpoint(callbacks::CallbackHandler::public_handle),
+        )
 }

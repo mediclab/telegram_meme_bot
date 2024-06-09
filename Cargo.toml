@@ -18,7 +18,7 @@ members = [".", "migration"]
 
 [dependencies]
 # Telegram Bot Library
-teloxide = { version = "0.12", features = ["macros"] }
+teloxide = { version = "0.12", features = ["macros", "redis-storage"] }
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 # Logs Libraries
 log = "0.4"
@@ -38,7 +38,7 @@ rand = "0.8"
 opencv = { version = "0.92", default-features = false, features = ["clang-runtime", "imgproc", "imgcodecs"] }
 anyhow = "1.0"
 itertools = "0.13"
-sentry = "0.33"
+sentry = "0.34"
 envconfig = "0.10"
 tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
 once_cell = "1.19.0"

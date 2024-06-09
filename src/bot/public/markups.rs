@@ -1,4 +1,4 @@
-use crate::bot::types::{CallbackOperations, MemeCallback};
+use super::types::*;
 use serde_json::json;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use uuid::Uuid;

@@ -1,10 +1,14 @@
 use commands::PrivateCommand;
-use teloxide::dispatching::{UpdateFilterExt, UpdateHandler};
-use teloxide::dptree;
-use teloxide::prelude::*;
+use serde::{Deserialize, Serialize};
+use teloxide::{
+    dispatching::{UpdateFilterExt, UpdateHandler},
+    dptree,
+    prelude::*,
+};
 
 mod admin;
 mod commands;
+mod messages;
 
 pub fn scheme() -> UpdateHandler<anyhow::Error> {
     dptree::entry().branch(admin::scheme()).branch(
@@ -14,6 +18,14 @@ pub fn scheme() -> UpdateHandler<anyhow::Error> {
                 Update::filter_message()
                     .filter_command::<PrivateCommand>()
                     .branch(dptree::case![PrivateCommand::Help].endpoint(commands::help_command)),
-            ),
+            )
+            .branch(Update::filter_message().endpoint(messages::handle)),
     )
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub enum PrivateState {
+    #[default]
+    Idle,
+    AdminAddMessage,
 }

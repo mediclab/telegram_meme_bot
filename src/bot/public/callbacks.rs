@@ -5,8 +5,8 @@ use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
 
 use super::markups::*;
+use super::types::*;
 use crate::app::Application;
-use crate::bot::types::{CallbackOperations, MemeCallback};
 use crate::bot::Bot;
 use crate::database::entity::{meme_likes::MemeLikesCountAll, memes::Model as MemeModel, prelude::Memes};
 
@@ -22,14 +22,7 @@ impl CallbackHandler {
         let data: MemeCallback =
             serde_json::from_str(&handler.callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
-        let meme = match Memes::get_by_id(data.uuid).await {
-            None => {
-                warn!("Meme {} not found!", &data.uuid);
-
-                return Ok(());
-            }
-            Some(m) => m,
-        };
+        let meme = Memes::get_by_id(data.uuid).await.expect("Can't get meme from callback");
 
         match data.op {
             CallbackOperations::Like => {
