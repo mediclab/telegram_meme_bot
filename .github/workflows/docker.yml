@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -54,5 +54,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Curl for update stack on server
+        continue-on-error: true
         run: |
           curl -fs -X POST ${{ secrets.CURL_WEBHOOK_URL }}

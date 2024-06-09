@@ -3,7 +3,7 @@ use crate::database::Database;
 use chrono::Utc;
 use migration::{Alias, Order};
 use sea_orm::entity::prelude::*;
-use sea_orm::{FromQueryResult, JoinType, QueryOrder, QuerySelect, Set};
+use sea_orm::{sea_query::OnConflict, FromQueryResult, JoinType, QueryOrder, QuerySelect, Set};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "users")]
@@ -46,6 +46,18 @@ pub struct TopUser {
 }
 
 impl Entity {
+    pub async fn add(model: ActiveModel) -> bool {
+        Entity::insert(model)
+            .on_conflict(
+                OnConflict::column(Column::UserId)
+                    .value(Column::DeletedAt, Expr::val(None::<DateTime>))
+                    .to_owned(),
+            )
+            .exec(Database::global().connection())
+            .await
+            .is_ok()
+    }
+
     pub async fn delete(user_id: i64) -> bool {
         Entity::update(ActiveModel {
             user_id: Set(user_id),
