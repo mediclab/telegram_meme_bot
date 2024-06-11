@@ -1,6 +1,5 @@
 use super::meme_likes::{MemeLikeOperation, MemeLikesCountAll};
-use crate::database::entity::prelude::MemeLikes;
-use crate::database::Database;
+use crate::database::{entity::prelude::MemeLikes, Database};
 use sea_orm::entity::prelude::*;
 use sea_orm::{
     sea_query::{Alias, Order},

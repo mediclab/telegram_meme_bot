@@ -9,6 +9,7 @@ use super::types::*;
 use crate::app::Application;
 use crate::bot::Bot;
 use crate::database::entity::{meme_likes::MemeLikesCountAll, memes::Model as MemeModel, prelude::Memes};
+use crate::redis::RedisManager;
 
 pub struct CallbackHandler {
     pub app: Arc<Application>,
@@ -146,7 +147,7 @@ impl CallbackHandler {
     }
 
     fn can_user_interact(&self, meme: &MemeModel) -> bool {
-        let admins = self.app.redis.get_chat_admins(self.callback.chat_id().unwrap().0);
+        let admins = RedisManager::global().get_chat_admins(self.callback.chat_id().unwrap().0);
         let is_user_admin = admins.contains(&self.callback.from.id.0);
 
         is_user_admin || (meme.user_id == self.callback.from.id.0 as i64)

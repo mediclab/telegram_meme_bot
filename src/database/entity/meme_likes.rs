@@ -1,6 +1,5 @@
 use crate::database::Database;
-use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::OnConflict;
+use sea_orm::{entity::prelude::*, sea_query::OnConflict};
 use sea_orm::{FromQueryResult, QuerySelect, QueryTrait, Set};
 
 #[derive(DeriveIden)]
