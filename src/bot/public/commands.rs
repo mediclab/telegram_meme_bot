@@ -5,6 +5,7 @@ use crate::database::entity::{
     messages::EntityTypes,
     prelude::{MemeLikes, Memes, Messages},
 };
+use crate::redis::RedisManager;
 use std::sync::Arc;
 use teloxide::{
     payloads::SendMessageSetters,
@@ -29,7 +30,7 @@ pub enum PublicCommand {
 }
 
 pub async fn help_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Result<()> {
-    let can_send = app.redis.can_send_message("help", msg.chat.id.0, msg.id.0);
+    let can_send = RedisManager::global().can_send_message("help", msg.chat.id.0, msg.id.0);
     bot.delete_message(msg.chat.id, msg.id).await?;
 
     if !can_send {
@@ -58,7 +59,7 @@ pub async fn f_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn accordion_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Result<()> {
+pub async fn accordion_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
     let me = bot.get_me().await?;
     bot.delete_message(msg.chat.id, msg.id).await?;
 
@@ -68,7 +69,7 @@ pub async fn accordion_command(bot: Bot, msg: Message, app: Arc<Application>) ->
                 return Ok(());
             }
 
-            let can_send = app.redis.can_send_message("accordion", msg.chat.id.0, msg.id.0);
+            let can_send = RedisManager::global().can_send_message("accordion", msg.chat.id.0, msg.id.0);
 
             if !can_send {
                 return Ok(());
@@ -103,7 +104,7 @@ pub async fn accordion_command(bot: Bot, msg: Message, app: Arc<Application>) ->
             .await?;
         }
         None => {
-            let can_send = app.redis.can_send_message("accordion_none", msg.chat.id.0, msg.id.0);
+            let can_send = RedisManager::global().can_send_message("accordion_none", msg.chat.id.0, msg.id.0);
 
             if can_send {
                 bot.send_message(
@@ -118,7 +119,7 @@ pub async fn accordion_command(bot: Bot, msg: Message, app: Arc<Application>) ->
     Ok(())
 }
 
-pub async fn unmeme_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Result<()> {
+pub async fn unmeme_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
     let me = bot.get_me().await?;
     bot.delete_message(msg.chat.id, msg.id).await?;
 
@@ -128,7 +129,7 @@ pub async fn unmeme_command(bot: Bot, msg: Message, app: Arc<Application>) -> an
                 return Ok(());
             }
 
-            let can_send = app.redis.can_send_message("unmeme", msg.chat.id.0, msg.id.0);
+            let can_send = RedisManager::global().can_send_message("unmeme", msg.chat.id.0, msg.id.0);
 
             if !can_send {
                 return Ok(());
@@ -154,7 +155,7 @@ pub async fn unmeme_command(bot: Bot, msg: Message, app: Arc<Application>) -> an
                 .await?;
         }
         None => {
-            let can_send = app.redis.can_send_message("unmeme_none", msg.chat.id.0, msg.id.0);
+            let can_send = RedisManager::global().can_send_message("unmeme_none", msg.chat.id.0, msg.id.0);
             if can_send {
                 bot.send_message(
                     msg.chat.id,
@@ -168,8 +169,8 @@ pub async fn unmeme_command(bot: Bot, msg: Message, app: Arc<Application>) -> an
     Ok(())
 }
 
-pub async fn stats_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Result<()> {
-    let can_send = app.redis.can_send_message("stats", msg.chat.id.0, msg.id.0);
+pub async fn stats_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
+    let can_send = RedisManager::global().can_send_message("stats", msg.chat.id.0, msg.id.0);
     bot.delete_message(msg.chat.id, msg.id).await?;
 
     if !can_send {

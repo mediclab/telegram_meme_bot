@@ -5,6 +5,7 @@ use crate::database::entity::{
     messages::EntityTypes,
     prelude::{Memes, Messages, Users},
 };
+use crate::redis::RedisManager;
 use std::sync::Arc;
 use teloxide::types::MessageKind;
 use teloxide::{
@@ -70,7 +71,7 @@ pub async fn common(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Re
     }
 
     if msg.photo().is_some() || msg.video().is_some() {
-        if !app.redis.is_chat_registered(msg.chat.id.0) {
+        if !RedisManager::global().is_chat_registered(msg.chat.id.0) {
             warn!("Chat {} is not registered", msg.chat.id.0);
 
             return Ok(());

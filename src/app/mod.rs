@@ -20,9 +20,7 @@ pub struct SimilarMeme {
 
 #[derive(Clone, Debug)]
 pub struct Application {
-    pub redis: RedisManager,
     pub config: Config,
-    pub bot: BotManager,
 }
 
 #[derive(Envconfig, Clone, Debug)]
@@ -41,15 +39,11 @@ impl Application {
     pub fn new() -> Self {
         let config = Config::init_from_env().expect("Can't load config from environment");
 
-        Self {
-            redis: RedisManager::connect(&config.redis_url),
-            bot: BotManager::new(&config.bot),
-            config,
-        }
+        Self { config }
     }
 
     pub async fn generate_hashes(&self, file_id: &str) -> Result<(Option<String>, Option<String>)> {
-        let path = self.bot.download_file(file_id).await?;
+        let path = BotManager::global().download_file(file_id).await?;
 
         sleep(Duration::from_millis(50)); // Sometimes downloading is very fast
         debug!("Filesize {path} is = {}", std::fs::metadata(&path)?.len());
@@ -104,23 +98,30 @@ impl Application {
     }
 
     pub fn check_version(&self) {
+        let redis = RedisManager::global();
         let chat_id = self.config.bot.chat_id;
-        if let Some(redis_version) = self.redis.get_app_version() {
+        if let Some(redis_version) = redis.get_app_version() {
             if redis_version != self.config.app_version {
-                block_on(self.bot.get().send_message(ChatId(chat_id), "😌 Я обновилься!").send())
-                    .expect("Can't send message");
+                block_on(
+                    BotManager::global()
+                        .get()
+                        .send_message(ChatId(chat_id), "😌 Я обновилься!")
+                        .send(),
+                )
+                .expect("Can't send message");
             }
         }
 
-        self.redis.set_app_version(&self.config.app_version);
+        redis.set_app_version(&self.config.app_version);
     }
 
     pub fn register_chat(&self) -> bool {
+        let redis = RedisManager::global();
         let chat_id = self.config.bot.chat_id;
-        let admins = block_on(self.bot.get_chat_admins(chat_id));
+        let admins = block_on(BotManager::global().get_chat_admins(chat_id));
 
-        self.redis.register_chat(chat_id);
-        self.redis.set_chat_admins(chat_id, &admins);
+        redis.register_chat(chat_id);
+        redis.set_chat_admins(chat_id, &admins);
 
         ChatAdmins::add_admins(chat_id, &admins);
 

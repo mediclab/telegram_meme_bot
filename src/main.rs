@@ -8,13 +8,15 @@ use std::sync::Arc;
 
 use clap::Parser;
 use dotenv::dotenv;
-use teloxide::dispatching::dialogue::serializer::Json;
-use teloxide::dispatching::dialogue::RedisStorage;
-use teloxide::dptree;
+use teloxide::{
+    dispatching::dialogue::{serializer::Json, RedisStorage},
+    dptree,
+};
 
 use crate::app::Application;
-use crate::bot::statistics::Statistics;
+use crate::bot::{statistics::Statistics, BotManager};
 use crate::database::Database;
+use crate::redis::RedisManager;
 use crate::scheduler::Scheduler;
 use app::utils::Period;
 
@@ -68,10 +70,13 @@ async fn main() {
     let scheduler = Scheduler::new();
 
     let db = Database::new(&app.config.db_url).await;
-    db.migrate().await.expect("Can't migrate databaase");
+    db.migrate().await.expect("Can't migrate database");
+    let redis = RedisManager::connect(&app.config.redis_url);
+    let bot = BotManager::new(&app.config.bot);
+
     database::INSTANCE.set(db).expect("Can't set database");
-    bot::INSTANCE.set(app.bot.clone()).expect("Can't set BotManager");
-    // redis::INSTANCE.set(app.redis.clone()).expect("Can't set RedisManager");
+    bot::INSTANCE.set(bot.clone()).expect("Can't set BotManager");
+    redis::INSTANCE.set(redis).expect("Can't set RedisManager");
 
     app.register_chat();
     app.check_version();
@@ -105,14 +110,13 @@ async fn main() {
             scheduler.handle().await.expect("Can't run scheduler");
 
             info!("Starting dispatch...");
-            app.bot
-                .dispatch(dptree::deps![
-                    app.clone(),
-                    RedisStorage::open(app.config.redis_url.clone(), Json)
-                        .await
-                        .expect("Can't connect dialogues on redis")
-                ])
-                .await;
+            bot.dispatch(dptree::deps![
+                app.clone(),
+                RedisStorage::open(app.config.redis_url.clone(), Json)
+                    .await
+                    .expect("Can't connect dialogues on redis")
+            ])
+            .await;
 
             info!("Shutdown bot...");
         }

@@ -1,8 +1,6 @@
 use crate::database::Database;
-use futures::executor::block_on;
-use futures::future::join_all;
-use sea_orm::entity::prelude::*;
-use sea_orm::{QuerySelect, Set};
+use futures::{executor::block_on, future::join_all};
+use sea_orm::{entity::prelude::*, QuerySelect, Set};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "chat_admins")]
