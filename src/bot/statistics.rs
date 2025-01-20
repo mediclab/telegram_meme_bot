@@ -6,7 +6,7 @@ use futures::FutureExt;
 use teloxide::payloads::SendMessageSetters;
 use teloxide::prelude::ChatId;
 use teloxide::requests::Requester;
-use teloxide::types::MessageId;
+use teloxide::types::{MessageId, ReplyParameters};
 
 #[derive(Debug, Clone)]
 pub struct Message {
@@ -116,7 +116,7 @@ impl Statistics {
                     bot.get()
                         .send_message(
                             ChatId(chat_id),
-                            &format!("Хотели топов? Их есть у меня!\n\n{}", &buffer.join("\n\n")),
+                            format!("Хотели топов? Их есть у меня!\n\n{}", &buffer.join("\n\n")),
                         )
                         .await
                         .expect("Can't send message");
@@ -126,7 +126,7 @@ impl Statistics {
                 let mut s = bot.get().send_message(ChatId(chat_id), &text);
 
                 if let Some(reply_id) = message.reply_id {
-                    s = s.reply_to_message_id(MessageId(reply_id as i32));
+                    s = s.reply_parameters(ReplyParameters::new(MessageId(reply_id as i32)));
                 }
 
                 s.await.expect("Can't send message");
@@ -139,7 +139,7 @@ impl Statistics {
             bot.get()
                 .send_message(
                     ChatId(chat_id),
-                    &format!("Хотели топов? Их есть у меня!\n\n{}", &buffer.join("\n\n")),
+                    format!("Хотели топов? Их есть у меня!\n\n{}", &buffer.join("\n\n")),
                 )
                 .await
                 .expect("Can't send message");

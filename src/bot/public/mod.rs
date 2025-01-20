@@ -37,7 +37,7 @@ pub fn scheme() -> UpdateHandler<anyhow::Error> {
         .branch(
             Update::filter_callback_query()
                 .filter(move |c: CallbackQuery| {
-                    c.message.is_some() && BotManager::filter_messages(&c.message.unwrap().chat, chat_id)
+                    c.message.is_some() && BotManager::filter_messages(c.message.unwrap().chat(), chat_id)
                 })
                 .endpoint(callbacks::CallbackHandler::public_handle),
         )

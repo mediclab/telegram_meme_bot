@@ -1,6 +1,6 @@
 [package]
 name = "tg_meme_bot"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 
 [profile.docker]
@@ -18,7 +18,7 @@ members = [".", "migration"]
 
 [dependencies]
 # Telegram Bot Library
-teloxide = { version = "0.12", features = ["macros", "redis-storage"] }
+teloxide = { version = "0.13", features = ["macros", "redis-storage"] }
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 # Logs Libraries
 log = "0.4"
@@ -30,17 +30,17 @@ clap = { version = "4.0", features = ["derive"] }
 now = "0.1"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-redis = { version = "0.25", features = ["tokio-comp", "r2d2"] }
+redis = { version = "0.28", features = ["tokio-comp", "r2d2"] }
 futures = "0.3"
 serde = "1.0"
 serde_json = "1.0"
 rand = "0.8"
 opencv = { version = "0.92", default-features = false, features = ["clang-runtime", "imgproc", "imgcodecs"] }
 anyhow = "1.0"
-itertools = "0.13"
-sentry = "0.34"
-envconfig = "0.10"
-tokio-cron-scheduler = { version = "0.10", features = ["signal"] }
+itertools = "0.14"
+sentry = "0.36"
+envconfig = "0.11"
+tokio-cron-scheduler = { version = "0.13.0", features = ["signal"] }
 once_cell = "1.19.0"
-sea-orm = { version = "0.12.15", features = ["sqlx-postgres", "macros", "runtime-tokio-rustls", "with-uuid", "with-chrono"] }
+sea-orm = { version = "1.1.4", features = ["sqlx-postgres", "macros", "runtime-tokio-rustls", "with-uuid", "with-chrono"] }
 migration = { path = "migration" }

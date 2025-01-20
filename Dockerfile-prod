@@ -24,9 +24,9 @@ ARG BOT_VERSION=unknown
 ENV BOT_VERSION=$BOT_VERSION
 
 MAINTAINER mediclab
-LABEL org.opencontainers.image.authors="mediclab <m@mdlb.cc>"
+LABEL org.opencontainers.image.authors="mediclab"
+LABEL org.opencontainers.image.base.name="alpine:edge"
 LABEL version=$BOT_VERSION
-LABEL description="Bot for mem-chats"
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update  \
     && apt-get install -y ca-certificates libpq5 libjpeg-dev libpng-dev libopenjp2-7 libtbb2 libtiff5 libwebp6 \

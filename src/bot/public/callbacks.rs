@@ -12,6 +12,7 @@ use crate::database::entity::{meme_likes::MemeLikesCountAll, memes::Model as Mem
 use crate::redis::RedisManager;
 
 pub struct CallbackHandler {
+    #[allow(dead_code)]
     pub app: Arc<Application>,
     pub bot: Bot,
     pub callback: CallbackQuery,
@@ -44,7 +45,11 @@ impl CallbackHandler {
     }
 
     pub async fn like(&self, meme: &MemeModel) -> Result<()> {
-        let msg = self.callback.message.clone().unwrap();
+        let msg = match self.callback.regular_message() {
+            Some(msg) => msg,
+            None => return Ok(()),
+        };
+
         let user_id = self.callback.from.id.0 as i64;
 
         if meme.like_exists(user_id).await {
@@ -54,7 +59,7 @@ impl CallbackHandler {
         }
 
         if let Some(counts) = meme.count_all_likes().await {
-            self.update_message(meme, &msg, counts).await?;
+            self.update_message(meme, msg, counts).await?;
         } else {
             warn!("Can't update counts on meme: {}", &meme.uuid)
         }
@@ -63,7 +68,11 @@ impl CallbackHandler {
     }
 
     pub async fn dislike(&self, meme: &MemeModel) -> Result<()> {
-        let msg = self.callback.message.clone().unwrap();
+        let msg = match self.callback.regular_message() {
+            Some(msg) => msg,
+            None => return Ok(()),
+        };
+
         let user_id = self.callback.from.id.0 as i64;
 
         if meme.dislike_exists(user_id).await {
@@ -73,7 +82,7 @@ impl CallbackHandler {
         }
 
         if let Some(counts) = meme.count_all_likes().await {
-            self.update_message(meme, &msg, counts).await?;
+            self.update_message(meme, msg, counts).await?;
         } else {
             warn!("Can't update counts on meme: {}", &meme.uuid)
         }
@@ -82,7 +91,10 @@ impl CallbackHandler {
     }
 
     pub async fn none(&self, meme: &MemeModel) -> Result<()> {
-        let msg = self.callback.message.as_ref().unwrap();
+        let msg = match self.callback.regular_message() {
+            Some(msg) => msg,
+            None => return Ok(()),
+        };
 
         if !self.can_user_interact(meme) {
             self.bot
@@ -105,7 +117,10 @@ impl CallbackHandler {
     }
 
     pub async fn delete(&self, meme: &MemeModel) -> Result<()> {
-        let msg = self.callback.message.as_ref().unwrap();
+        let msg = match self.callback.regular_message() {
+            Some(msg) => msg,
+            None => return Ok(()),
+        };
 
         if !self.can_user_interact(meme) {
             self.bot
