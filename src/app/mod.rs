@@ -31,7 +31,7 @@ pub struct Config {
     pub db_url: String,
     #[envconfig(from = "REDIS_URL")]
     pub redis_url: String,
-    #[envconfig(nested = true)]
+    #[envconfig(nested)]
     pub bot: BotConfig,
 }
 

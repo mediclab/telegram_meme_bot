@@ -7,6 +7,7 @@ use crate::database::entity::{
 };
 use crate::redis::RedisManager;
 use std::sync::Arc;
+use teloxide::types::ReplyParameters;
 use teloxide::{
     payloads::SendMessageSetters,
     prelude::{Message, Requester},
@@ -46,7 +47,7 @@ pub async fn help_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyh
                 app.config.app_version
             ),
         )
-        .disable_web_page_preview(true)
+        // .disable_web_page_preview(true)
         .await?;
 
     Ok(())
@@ -65,7 +66,7 @@ pub async fn accordion_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
 
     match msg.reply_to_message() {
         Some(repl) => {
-            if repl.from().unwrap().id != me.id {
+            if repl.from.as_ref().unwrap().id != me.id {
                 return Ok(());
             }
 
@@ -94,7 +95,7 @@ pub async fn accordion_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
                 msg.chat.id,
                 format!("{user_text} Пользователи жалуются на великое баянище!\nЧто будем с ним делать?"),
             )
-            .reply_to_message_id(repl.id)
+            .reply_parameters(ReplyParameters::new(repl.id))
             .reply_markup(
                 DeleteMarkup::new(meme.uuid)
                     .set_ok_text("👎 Удалите, прошу прощения")
@@ -125,7 +126,7 @@ pub async fn unmeme_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
 
     match msg.reply_to_message() {
         Some(repl) => {
-            if repl.from().unwrap().id != me.id {
+            if repl.from.as_ref().unwrap().id != me.id {
                 return Ok(());
             }
 
@@ -145,7 +146,7 @@ pub async fn unmeme_command(bot: Bot, msg: Message) -> anyhow::Result<()> {
             };
 
             bot.send_message(msg.chat.id, String::from("Ты хочешь удалить мем?"))
-                .reply_to_message_id(repl.id)
+                .reply_parameters(ReplyParameters::new(repl.id))
                 .reply_markup(
                     DeleteMarkup::new(meme.uuid)
                         .set_ok_text("🗑 Да, я хочу удалить")

@@ -36,6 +36,7 @@ impl Database {
     }
 
     pub async fn migrate(&self) -> Result<()> {
+        info!("Starting migration...");
         Migrator::up(&self.connection, None).await?;
 
         Ok(())

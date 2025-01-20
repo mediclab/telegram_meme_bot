@@ -18,9 +18,7 @@ pub fn scheme() -> UpdateHandler<anyhow::Error> {
     dptree::entry()
         .branch(
             Update::filter_message()
-                .filter(move |m: Message| {
-                    m.chat.is_private() && ChatAdmins::is_user_admin(m.from().unwrap().id.0 as i64)
-                })
+                .filter(move |m: Message| m.chat.is_private() && ChatAdmins::is_user_admin(m.from.unwrap().id.0 as i64))
                 .enter_dialogue::<Message, RedisStorage<Json>, State>()
                 .branch(
                     Update::filter_message()
@@ -42,7 +40,7 @@ pub fn scheme() -> UpdateHandler<anyhow::Error> {
         .branch(
             Update::filter_callback_query()
                 .filter(move |c: CallbackQuery| {
-                    c.message.unwrap().chat.is_private() && ChatAdmins::is_user_admin(c.from.id.0 as i64)
+                    c.message.unwrap().chat().is_private() && ChatAdmins::is_user_admin(c.from.id.0 as i64)
                 })
                 .enter_dialogue::<CallbackQuery, RedisStorage<Json>, State>()
                 .endpoint(callbacks::handle),

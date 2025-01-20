@@ -30,7 +30,7 @@ pub async fn help_command(bot: Bot, msg: Message, app: Arc<Application>) -> anyh
 }
 
 pub async fn message_command(bot: Bot, msg: Message, text: String) -> anyhow::Result<()> {
-    let user_chats = ChatAdmins::get_admin_chats(msg.from().unwrap().id.0).await;
+    let user_chats = ChatAdmins::get_admin_chats(msg.from.unwrap().id.0).await;
 
     match user_chats.len() {
         0 => {

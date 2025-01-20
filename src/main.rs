@@ -75,7 +75,7 @@ async fn main() {
     let bot = BotManager::new(&app.config.bot);
 
     database::INSTANCE.set(db).expect("Can't set database");
-    bot::INSTANCE.set(bot.clone()).expect("Can't set BotManager");
+    bot::INSTANCE.set(bot).expect("Can't set BotManager");
     redis::INSTANCE.set(redis).expect("Can't set RedisManager");
 
     app.register_chat();
@@ -110,13 +110,14 @@ async fn main() {
             scheduler.handle().await.expect("Can't run scheduler");
 
             info!("Starting dispatch...");
-            bot.dispatch(dptree::deps![
-                app.clone(),
-                RedisStorage::open(app.config.redis_url.clone(), Json)
-                    .await
-                    .expect("Can't connect dialogues on redis")
-            ])
-            .await;
+            BotManager::global()
+                .dispatch(dptree::deps![
+                    app.clone(),
+                    RedisStorage::open(&app.config.redis_url.clone(), Json)
+                        .await
+                        .expect("Can't connect dialogues on redis")
+                ])
+                .await;
 
             info!("Shutdown bot...");
         }

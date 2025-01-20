@@ -41,7 +41,7 @@ impl memes::Entity {
 
         let res = memes::ActiveModel {
             msg_id: Set(Some(message.id.0 as i64)),
-            user_id: Set(message.from().unwrap().id.0 as i64),
+            user_id: Set(message.from.as_ref().unwrap().id.0 as i64),
             chat_id: Set(message.chat.id.0),
             photos: Set(json),
             long_hash: Set(l_hash.clone()),
@@ -76,6 +76,7 @@ impl memes::Model {
 }
 
 impl chats::Entity {
+    #[allow(dead_code)]
     pub async fn add(tg_chat: &Chat) -> Option<chats::Model> {
         let res = chats::ActiveModel::from(tg_chat.clone())
             .insert(Database::global().connection())

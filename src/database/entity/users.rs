@@ -1,9 +1,9 @@
 use crate::database::entity::meme_likes::MemeLikeOperation;
 use crate::database::Database;
 use chrono::Utc;
-use migration::{Alias, Order};
 use sea_orm::entity::prelude::*;
-use sea_orm::{sea_query::OnConflict, FromQueryResult, JoinType, QueryOrder, QuerySelect, Set};
+use sea_orm::sea_query::Alias;
+use sea_orm::{sea_query::OnConflict, FromQueryResult, JoinType, Order, QueryOrder, QuerySelect, Set};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "users")]

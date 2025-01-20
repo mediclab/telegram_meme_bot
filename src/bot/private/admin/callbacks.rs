@@ -7,10 +7,9 @@ use teloxide::{payloads::AnswerCallbackQuerySetters, prelude::*};
 pub async fn handle(bot: Bot, callback: CallbackQuery, dialogue: BotDialogue) -> Result<()> {
     let data: CallbackOperations = serde_json::from_str(&callback.data.clone().unwrap_or_else(|| r#"{}"#.to_string()))?;
 
-    let msg = if let Some(m) = callback.message {
-        m
-    } else {
-        return Ok(());
+    let msg = match callback.regular_message() {
+        Some(m) => m.clone(),
+        None => return Ok(()),
     };
 
     if let CallbackOperations::Cancel = data {

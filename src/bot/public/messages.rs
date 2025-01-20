@@ -7,7 +7,7 @@ use crate::database::entity::{
 };
 use crate::redis::RedisManager;
 use std::sync::Arc;
-use teloxide::types::MessageKind;
+use teloxide::types::{MessageKind, ReplyParameters};
 use teloxide::{
     payloads::{SendMessageSetters, SendPhotoSetters},
     prelude::*,
@@ -47,11 +47,11 @@ pub async fn common(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Re
     match msg.kind {
         MessageKind::Common(_) => {
             // If This is forwarded message - nothing to do.
-            if msg.forward().is_some() {
+            if msg.forward_origin().is_some() {
                 return Ok(());
             }
 
-            if msg.from().is_none() {
+            if msg.from.is_none() {
                 warn!("Anonymous user detected");
 
                 return Ok(());
@@ -90,7 +90,7 @@ pub async fn common(bot: Bot, msg: Message, app: Arc<Application>) -> anyhow::Re
 }
 
 async fn photo_handle(bot: &Bot, msg: &Message, app: &Application) -> anyhow::Result<()> {
-    let user = msg.from().unwrap();
+    let user = msg.from.as_ref().unwrap();
     let photos = if let Some(photos) = msg.photo() {
         photos
     } else {
@@ -117,7 +117,7 @@ async fn photo_handle(bot: &Bot, msg: &Message, app: &Application) -> anyhow::Re
         let message = Messages::get_random_text(EntityTypes::MemeAlreadyExists).await;
 
         bot.send_message(msg.chat.id, message.replace("{user_name}", &user_text))
-            .reply_to_message_id(meme.msg_id())
+            .reply_parameters(ReplyParameters::new(meme.msg_id()))
             .await?;
 
         return Ok(());
@@ -156,7 +156,7 @@ async fn photo_handle(bot: &Bot, msg: &Message, app: &Application) -> anyhow::Re
                 &crate::app::utils::Messages::pluralize(s_meme.percent, ("процент", "процента", "процентов")),
             ),
         )
-        .reply_to_message_id(s_meme.meme.unwrap().msg_id())
+        .reply_parameters(ReplyParameters::new(s_meme.meme.unwrap().msg_id()))
         .reply_markup(
             DeleteMarkup::new(meme.uuid)
                 .set_ok_text("🗑 Упс, действительно, было...")
@@ -170,7 +170,7 @@ async fn photo_handle(bot: &Bot, msg: &Message, app: &Application) -> anyhow::Re
 }
 
 async fn video_handle(bot: &Bot, msg: &Message) -> anyhow::Result<()> {
-    let user = msg.from().unwrap();
+    let user = msg.from.as_ref().unwrap();
     let video = if let Some(photos) = msg.video() {
         photos
     } else {

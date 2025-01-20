@@ -22,17 +22,17 @@ impl RedisManager {
 
     pub fn is_chat_registered(&self, chat_id: i64) -> bool {
         self.get_connection()
-            .exists(&format!("{chat_id}_registered"))
+            .exists(format!("{chat_id}_registered"))
             .unwrap_or(false)
     }
 
     pub fn can_send_message(&self, key: &str, chat_id: i64, message_id: i32) -> bool {
-        let r_message_id = self.get_connection().get(&format!("{chat_id}_msg_{key}")).unwrap_or(0);
+        let r_message_id = self.get_connection().get(format!("{chat_id}_msg_{key}")).unwrap_or(0);
 
         if r_message_id == 0 || (message_id - r_message_id > 20) {
             let _: () = self
                 .get_connection()
-                .set_ex(&format!("{chat_id}_msg_{key}"), message_id, 15 * 60)
+                .set_ex(format!("{chat_id}_msg_{key}"), message_id, 15 * 60)
                 .unwrap_or_default();
 
             return true;
@@ -43,18 +43,18 @@ impl RedisManager {
 
     pub fn register_chat(&self, chat_id: i64) {
         self.get_connection()
-            .set(&format!("{chat_id}_registered"), true)
+            .set(format!("{chat_id}_registered"), true)
             .expect("Can't register chat")
     }
 
     pub fn set_chat_admins(&self, chat_id: i64, admins_uids: &Vec<u64>) -> bool {
         self.get_connection()
-            .set(&format!("{chat_id}_admins"), json!(admins_uids).to_string())
+            .set(format!("{chat_id}_admins"), json!(admins_uids).to_string())
             .expect("Can't set chat admins")
     }
 
     pub fn get_chat_admins(&self, chat_id: i64) -> Vec<u64> {
-        let json: RedisResult<String> = self.get_connection().get(&format!("{chat_id}_admins"));
+        let json: RedisResult<String> = self.get_connection().get(format!("{chat_id}_admins"));
 
         if json.is_err() {
             return Vec::default();
