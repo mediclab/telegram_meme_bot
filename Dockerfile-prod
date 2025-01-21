@@ -1,4 +1,4 @@
-FROM rust:slim-bullseye as builder
+FROM rust:slim-bullseye AS builder
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && apt-get install -y cmake build-essential clang pkg-config \
@@ -23,7 +23,6 @@ FROM debian:bullseye-slim
 ARG BOT_VERSION=unknown
 ENV BOT_VERSION=$BOT_VERSION
 
-MAINTAINER mediclab
 LABEL org.opencontainers.image.authors="mediclab"
 LABEL org.opencontainers.image.base.name="alpine:edge"
 LABEL version=$BOT_VERSION
